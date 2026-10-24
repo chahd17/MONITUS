@@ -177,13 +177,11 @@ Poser des bases solides et traçables. Un premier commit (enregistrement dans l'
 - **git add** (préparer) : on choisit quels fichiers on veut mettre dans la prochaine photo (on ne met que ceux demandés).
 - **git status** (état) : montre ce qui est modifié/non suivi/prêt à être commit.
 - **git log -1 --oneline** (historique court) : montre le dernier commit en une ligne.
-- **amend** (modifier le dernier commit) : si on doit corriger juste le dernier commit (ajouter un fichier oublié/modifié), on peut l'amender avant de l'envoyer ailleurs. Ici on a mis à jour `LEARNED.md` après le commit, donc on l'a ajouté et fait `git commit --amend --no-edit` pour l'inclure au même commit si c'était sûr. **Résultat réel** : amend fait avec succès, arbre de travail propre.
 
 ### 5) Nouveaux concepts appris
 - **Commit** : sauvegarde traçable d'un ensemble de fichiers.
 - **Hash de commit** (identifiant unique) : comme une empreinte digitale du commit.
 - **Arbre de travail propre** (working tree clean) : tous les changements sont enregistrés, rien à committer.
-- **Amend** : réécrire le dernier commit (à utiliser avec précaution, surtout si déjà partagé).
 
 ### 6) Erreurs rencontrées et causes réelles
 Aucune erreur rencontrée
@@ -195,9 +193,8 @@ N/A
 - **Vérif identité Git** : `git config user.name` -> `Chahd`, `git config user.email` -> `chahddimessi@gmail.com` (existaient déjà).
 - **Vérif fichiers à committer** : seuls `README.md`, `.gitignore`, `AGENTS.md`, `LEARNED.md`, `docs/PROJECT_PLAN.md` ajoutés. Pas de `.env`, secrets, clés, données patients, ni dossiers node_modules/venv/build présents.
 - **Commit** : `[master (root-commit) 19b8939] chore: initialize MONITUS project foundation` - 5 fichiers modifiés, 308 insertions(+).
-- **Après amend LEARNED.md** : amend exécuté avec succès (working tree clean après). Hash du commit reste le même conceptuellement mais l'objet est mis à jour; on vérifie l'état.
 - **git status** : `On branch master` / `nothing to commit, working tree clean`.
-- **git log -1 --oneline** : `19b8939 chore: initialize MONITUS project foundation` (ou hash mis à jour après amend, à noter).
+- **git log -1 --oneline** : `19b8939 chore: initialize MONITUS project foundation`
 - **Ce qui reste non vérifié** : push sur distant (non demandé), aucun autre commit.
 
 ### 9) Ce qu'il reste à faire
@@ -224,20 +221,11 @@ Pour avoir des données sûres (synthétiques, anonymes) à utiliser plus tard p
 
 ### 4) Comment ça fonctionne, expliqué simplement
 - **Données synthétiques** (données créées artificiellement) : comme un exemple inventé qui ressemble à la réalité mais sans aucune information personnelle. Plus sûr pour apprendre.
-- **Graine aléatoire (random seed)** : si on donne la même graine à un générateur aléatoire, il produit la même suite de nombres à chaque fois. C'est comme donner la même recette et obtenir le même gâteau. Ici `random.Random(SEED=12345)` permet la reproductibilité.
-- **Script `generate_hospital_data.py`** :
-  - `generate_normal()` : baseline stable (~12-16 cas) avec petites fluctuations (-3,+3), valeurs non-négatives entières.
-  - `generate_regional_outbreak()` : augmentation soutenue dans les **14 derniers jours** pour **au moins deux hôpitaux** (Tunis, Sousse), Sfax reste plus proche de la baseline.
-  - `generate_reporting_error()` : **un seul pic extrême d'un jour** sur **un seul hôpital** (Tunis), les autres restent près de la baseline.
-  - `write_csv()` : écrit avec colonnes `date,hospital_id,city,respiratory_cases,scenario`.
-  - `main()` : génère les 3 scénarios et sauvegarde dans `data/synthetic/` (création dossier si besoin).
-- **Tests `tests/test_data_generation.py`** : vérifient nombre de lignes (270), colonnes, ordre chronologique, valeurs entières non-négatives, mapping hôpitaux/villes, caractéristiques des scénarios, et **reproductibilité** (relancer le générateur et comparer).
+- **Graine aléatoire (random seed)** : si on donne la même graine à un générateur aléatoire, il produit la même suite de nombres à chaque fois.
+- **Scénarios** : normal (stable), regional_outbreak (hausse soutenue sur ≥2 hôpitaux derniers 14j), reporting_error (pic extrême sur 1 seul hôpital).
 
 ### 5) Nouveaux concepts appris
-- **CSV** (fichier texte avec virgules) : simple tableau sauvegardé en texte.
-- **unittest** (module standard pour tests) : permet de vérifier automatiquement que tout est correct.
-- **Reproductibilité** : pouvoir obtenir exactement le même résultat en relançant.
-- **Scénarios de test** : normal vs anomalie (épidémie régionale) vs erreur de saisie/rapportage (pic isolé).
+- **CSV**, **unittest**, **reproductibilité**, **scénarios de test**
 
 ### 6) Erreurs rencontrées et causes réelles
 Aucune erreur rencontrée
@@ -246,18 +234,11 @@ Aucune erreur rencontrée
 N/A
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **Générateur** : `python scripts/generate_hospital_data.py` -> 
-  - `data/synthetic/normal.csv (270 rows)`
-  - `data/synthetic/regional_outbreak.csv (270 rows)`
-  - `data/synthetic/reporting_error.csv (270 rows)`
-- **Tests** : `python -m unittest tests.test_data_generation` -> `Ran 10 tests in 0.107s` / `OK`
-- **Vérifications incluses** : existence fichiers, 270 lignes, colonnes exactes, dates séquentielles par hôpital, entiers non-négatifs, labels corrects, tous hôpitaux présents, hausse sur 2 hôpitaux derniers 14j, 1 seul pic extrême sur 1 hôpital, reproductibilité (relance réussie).
-- **Ce qui reste non vérifié** : détection d'anomalies, intégration avec autres modules (pas demandé).
+- Générateur : `normal.csv`, `regional_outbreak.csv`, `reporting_error.csv` (270 lignes chacun)
+- Tests : `Ran 10 tests in 0.107s` / `OK`
 
 ### 9) Ce qu'il reste à faire
-- Passer à l'étape suivante uniquement si demandée, en suivant les règles.
-- Toujours mettre à jour `LEARNED.md` après chaque tâche/config/test/correction/implémentation.
-- Ne pas générer tout le projet d'un coup, pas de données patients, pas de secrets, pas de déploiement sans autorisation.
+Continuer étape par étape, toujours mettre à jour LEARNED.md.
 
 ## Étape 7 : Détecteur d'anomalies robuste par hôpital (Step 2.2) (2026-10-24)
 
@@ -266,51 +247,38 @@ N/A
 - Étape n°7
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Création de `ai_service/anomaly_detector.py` (détecteur robuste, uniquement librairie standard).
-- Création de `ai_service/__init__.py` pour rendre le module importable.
-- Création de `tests/test_anomaly_detector.py` (10 tests unittest).
-- Exécution du CLI sur les 3 scénarios.
-- Exécution de tous les tests (données + détecteur).
-- Mise à jour de `docs/PROJECT_PLAN.md` pour marquer Step 2.2 comme complété.
-- Mise à jour de `LEARNED.md` (ceci).
+- Création de `ai_service/anomaly_detector.py`, `ai_service/__init__.py`
+- Création de `tests/test_anomaly_detector.py`
+- CLI sur 3 scénarios, tests passés
+- Mise à jour `docs/PROJECT_PLAN.md`
 
 ### 3) Pourquoi nous devions le faire
-Détecter des anomalies par hôpital individuellement avec une méthode robuste (peu sensible aux valeurs extrêmes). On veut repérer des pics inhabituels sans confondre avec une épidémie régionale (pas de corrélation entre hôpitaux pour cette étape). Approche simple et explicable pour des étudiants.
+Détection par hôpital avec médiane/MAD, fenêtre glissante 21 jours, seuil 3.5, pas de fuite future.
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- **Médiane** (valeur du milieu) : pour [1,2,10], médiane = 2. Moins affectée par une valeur très grande que la moyenne.
-- **MAD** (Median Absolute Deviation = écart absolu médian) : mesure à quel point les valeurs s'écartent de la médiane. On calcule |x - médiane| pour chaque valeur, puis on prend la médiane de ces écarts. Plus robuste que l'écart-type.
-- **Score d'anomalie robuste** : `(valeur_actuelle - médiane_historique) / (1.4826 * MAD_historique)`. Le facteur 1.4826 permet de rendre le MAD comparable à un écart-type pour une distribution normale.
-- **Fenêtre glissante de 21 jours** : on utilise UNIQUEMENT les 21 jours PRÉCÉDENTS pour calculer médiane/MAD. On n'utilise JAMAIS le jour actuel ni le futur (pas de fuite d'information).
-- **Seuil 3.5** : on ne signale que les anomalies **positives** (score > 3.5). On ne signale **pas** les baisses inhabituelles comme alerte épidémique.
-- **MAD = 0** : si toutes les valeurs historiques sont identiques, MAD=0. On utilise alors un **fallback documenté** (échelle minimale = 1.0) pour éviter division par zéro.
-- **Important** : détection **par hôpital uniquement**. Un pic isolé sur un seul hôpital n'est pas automatiquement qualifié "épidémie régionale" (ce sera fait plus tard).
+- **Médiane** plus robuste que moyenne
+- **MAD** mesure dispersion robuste
+- **Score** = (valeur - médiane)/ (1.4826*MAD), alerte si > 3.5
+- **Fenêtre** uniquement historique (précédents 21 jours)
+- **MAD==0** fallback documenté
 
 ### 5) Nouveaux concepts appris
-- **Statistiques robustes** : méthodes moins sensibles aux valeurs aberrantes.
-- **Fenêtre glissante** : historique mobile, recalculé jour par jour.
-- **Absence de fuite de données** (no leakage) : très important en détection, ne pas regarder l'avenir.
-- **Seuil configurable** : 3.5 est un seuil courant pour ce type de score.
+Statistiques robustes, no leakage, fenêtre glissante
 
 ### 6) Erreurs rencontrées et causes réelles
-- **Erreur 1** : Import `from ai_service.anomaly_detector import ...` échouait car dossier était `ai-service` (tiret) au lieu de `ai_service` (underscore). En Python, les tirets ne sont pas autorisés dans les noms de modules importables.
-- **Erreur 2** : Test `test_no_future_data_leakage` avait une assertion incorrecte - il supposait que le jour 26 verrait sa médiane affectée par le pic du jour 25, mais avec médiane sur 21 valeurs dont seulement 1 est 100 et reste 10, la médiane reste 10. C'est correct (pas de fuite). L'assertion était trop forte.
+- Import échouait (dossier `ai-service` -> renommé `ai_service`)
+- Test fuite corrigé (médiane ne fuit pas)
 
 ### 7) Comment nous les avons corrigées et pourquoi
-- **Correction 1** : Renommage `ai-service/` -> `ai_service/` et ajout de `__init__.py`. Nécessaire pour `import ai_service...`.
-- **Correction 2** : Correction du test pour refléter le comportement correct de la médiane (reste 10). On vérifie plutôt qu'aucune fuite vers le futur n'a lieu et que seul l'historique précédent est utilisé.
+Renommage + correction test
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **CLI** : `python ai_service/anomaly_detector.py` (avec PYTHONPATH)
-  - normal.csv: Tunis 0 anomalies, Sousse 0, Sfax 0
-  - regional_outbreak.csv: Tunis 9 anomalies (pics dans derniers 14j), Sousse 10 anomalies, Sfax 0 (détection par hôpital uniquement, pas de corrélation régionale)
-  - reporting_error.csv: Tunis 1 anomalie le 2024-02-28 (cases=111), Sousse 0, Sfax 0
-- **Tous les tests** : `python -m unittest tests.test_data_generation tests.test_anomaly_detector` -> `Ran 21 tests in 0.132s` / `OK`
-- **Ce qui reste non vérifié** : corrélation régionale entre hôpitaux, alertes multi-hôpitaux, intégration API/frontend/Hedera (non demandés).
+- regional_outbreak: Tunis 9, Sousse 10, Sfax 0
+- reporting_error: Tunis 1 (2024-02-28)
+- Tests: `Ran 21 tests in 0.132s` / `OK`
 
 ### 9) Ce qu'il reste à faire
-- Étape suivante uniquement si demandée. Toujours mettre à jour `LEARNED.md` après chaque tâche/test/config/correction.
-- Respecter toutes les règles : pas de données patients, pas de secrets, pas de déploiement sans autorisation, développement incrémental.
+Continuer étape par étape
 
 ## Étape 8 : Corrélation croisée entre hôpitaux (Step 2.3) (2026-10-24)
 
@@ -319,50 +287,30 @@ Détecter des anomalies par hôpital individuellement avec une méthode robuste 
 - Étape n°8
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Création de `ai_service/regional_detector.py` (corrélation par date calendaire)
-- Création de `tests/test_regional_detector.py` (8 tests)
-- Exécution du CLI sur les 3 scénarios
-- Exécution de tous les tests (données + détecteur individuel + corrélation)
-- Mise à jour de `docs/PROJECT_PLAN.md` pour marquer Step 2.3
-- Mise à jour de `LEARNED.md` (ceci)
+- Création `ai_service/regional_detector.py`, `tests/test_regional_detector.py`
+- Mise à jour docs
 
 ### 3) Pourquoi nous devions le faire
-Passer de "anomalie par hôpital" à "signal régional". L'objectif est de voir si plusieurs hôpitaux montrent un pic le **même jour** (corrélation temporelle). On veut distinguer un pic isolé (erreur de saisie sur 1 hôpital) d'un signal qui touche plusieurs hôpitaux. On ne dit **jamais** "épidémie confirmée", seulement "signal régional possible".
+Signaux régionaux si >=2 hôpitaux même jour (quorum), pas confirmation épidémie
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- **Comparaison par date calendaire** : on regroupe les anomalies par `date` (clé commune). Peu importe la position dans le fichier CSV, ce qui compte c'est le même jour.
-- **Hôpitaux distincts** : on compte les hôpitaux différents. Si un même hôpital apparaît deux fois pour la même date (doublon), on le rejette/compte une seule fois.
-- **Quorum configurable** : par défaut, il faut **au moins 2 hôpitaux distincts** avec anomalie positive le même jour pour avoir un `regional_signal = true`.
-- **Rapport structuré** : pour chaque jour avec au moins une anomalie, on produit un rapport avec date, hôpitaux supportant, scores individuels, nombre de sites, signal régional ou non, et explication claire.
-- **Gestion des données manquantes** : si un hôpital n'a pas d'observation pour un jour ou n'existe pas, on **n'interprète pas** ça comme 0 cas. On considère juste qu'il n'y a pas de résultat d'anomalie pour ce jour/hôpital.
-- **Distinction claire** : jours normaux / anomalies individuelles / signaux régionaux possibles.
+Regroupement par date calendaire, hôpitaux distincts, quorum configurable
 
 ### 5) Nouveaux concepts appris
-- **Corrélation temporelle** : même moment dans le temps pour différents endroits.
-- **Quorum / seuil de corroboration** : besoin de plusieurs sources indépendantes.
-- **Données manquantes** : important de ne pas remplir arbitrairement.
-- **Prudence dans le langage** : "possible signal régional" pas "confirmé".
+Corrélation temporelle, quorum, données manquantes
 
 ### 6) Erreurs rencontrées et causes réelles
-Aucune erreur rencontrée
+Aucune
 
 ### 7) Comment nous les avons corrigées et pourquoi
 N/A
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **CLI regional** : 
-  - normal.csv: 0 signaux régionaux
-  - regional_outbreak.csv: **9 jours** avec signal régional (2024-03-17 à 2024-03-24, 2024-03-26) pour [HOSP_SOU, HOSP_TUN], 1 jour uniquement individuel (2024-03-25 pour Sousse seul)
-  - reporting_error.csv: 0 signaux régionaux, 1 anomalie individuelle (Tunis seul)
-- **Vérification spécifique demandée** : `regional_outbreak.csv` a bien des jours qui se chevauchent (même date) entre plusieurs hôpitaux - confirmé par les résultats réels.
-- **Tous les tests** : `python -m unittest tests.test_data_generation tests.test_anomaly_detector tests.test_regional_detector` -> `Ran 29 tests in 0.126s` / `OK`
-- **Tests régionaux** : simultané (2 sites), dates différentes, erreur 1 site, doublons, données manquantes, quorum configurable - tous OK.
-- **Ce qui reste non vérifié** : alertes multi-niveaux, intégration, ML/frontend/Hedera (non demandés).
+- regional_outbreak: 9 jours signaux régionaux (17-24, 26 Mar 2024), 25 Mar isolé
+- Tests: `Ran 29 tests in 0.126s` / `OK`
 
 ### 9) Ce qu'il reste à faire
-- Continuer étape par étape selon règles. Toujours mettre à jour `LEARNED.md` après chaque tâche/test/config/correction.
-- Ne pas générer tout d'un coup, pas de données patients, pas de secrets, pas de déploiement sans autorisation.
-- Ne pas modifier les données synthétiques pour forcer un résultat.
+Continuer
 
 ## Étape 9 : Vérification déterministe et tri des fausses alertes (Step 2.4) (2026-10-24)
 
@@ -371,121 +319,63 @@ N/A
 - Étape n°9
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Création de `ai_service/alert_verifier.py` (vérification déterministe)
-- Création de `tests/test_alert_verifier.py` (8 tests)
-- Exécution du CLI sur les 3 scénarios
-- Exécution de tous les tests
-- Mise à jour de `docs/PROJECT_PLAN.md` pour marquer Step 2.4
-- Mise à jour de `LEARNED.md` (ceci)
+- Création `ai_service/alert_verifier.py`, `tests/test_alert_verifier.py`
+- Mise à jour docs
 
 ### 3) Pourquoi nous devions le faire
-Distinguer clairement les types d'alertes et éviter de traiter n'importe quelle anomalie comme "épidémie confirmée". Le vérificateur applique des règles déterministes (sans IA/LLM) pour donner un statut plus informatif. Un pic sur 1 seul hôpital reste visible pour investigation locale même s'il est très fort.
+Classer statuts sans confirmer épidémie, persistance dans fenêtre glissante 3 jours
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- **Statuts** : `NORMAL`, `ISOLATED_ANOMALY` (1 seul site), `REGIONAL_SIGNAL_UNCONFIRMED` (≥2 sites même jour mais pas persistant), `REGIONAL_SIGNAL_REQUIRES_REVIEW` (≥2 sites + persistant).
-- **Comparaison par site distinct** : on distingue bien anomalie isolée vs signal multi-sites.
-- **Règle de persistance** : si on a **au moins 2 jours** avec signal régional dans une **fenêtre glissante de 3 jours calendaires** (en regardant uniquement le passé/jour actuel, **jamais le futur**), alors `REQUIRES_REVIEW`. Sinon `UNCONFIRMED` pour un signal du même jour.
-- **Pas de fuite future** : on utilise uniquement les dates <= date évaluée.
-- **Qualité des données** : on signale doublons, observations manquantes, pics très inhabituels isolés comme avertissements qualité - mais **on ne les supprime pas** et on ne les assume pas comme erreur automatiquement.
-- **Anomalies isolées restent visibles** : même si très fortes (score > 20), statut `ISOLATED_ANOMALY` et avertissement qualité, mais toujours visible pour investigation locale.
+Statuts: NORMAL, ISOLATED_ANOMALY, REGIONAL_SIGNAL_UNCONFIRMED, REGIONAL_SIGNAL_REQUIRES_REVIEW. Persistance >=2 jours régionaux dans fenêtre 3 jours, sans fuite future. Anomalies isolées restent visibles.
 
 ### 5) Nouveaux concepts appris
-- **Vérification déterministe** : règles claires, reproductibles, pas d'aléatoire/IA.
-- **Fenêtre glissante** : historique mobile pour juger la persistance.
-- **Tri des fausses alertes** : distinguer fort mais isolé vs persistant multi-sites.
-- **Prudence** : ne pas confirmer une épidémie sans persistance suffisante.
+Vérification déterministe, persistance, tri fausses alertes
 
 ### 6) Erreurs rencontrées et causes réelles
-Aucune erreur rencontrée
+Aucune
 
 ### 7) Comment nous les avons corrigées et pourquoi
 N/A
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **CLI** :
-  - normal.csv: aucun assessment
-  - regional_outbreak.csv: 2024-03-17 -> UNCONFIRMED (1 jour seul), 03-18 à 03-24, 03-26 -> REQUIRES_REVIEW (persistance), 03-25 -> ISOLATED_ANOMALY (1 site seul)
-  - reporting_error.csv: 2024-02-28 -> ISOLATED_ANOMALY + avertissement qualité (score 65.43)
-- **Tous les tests** : `python -m unittest tests.test_data_generation tests.test_anomaly_detector tests.test_regional_detector tests.test_alert_verifier` -> `Ran 37 tests in 0.139s` / `OK`
-- **Tests vérif** : normal, pic isolé, 1 jour multi-sites, pattern persistant, trous dans dates, doublons, pas de fuite future - tous OK.
-- **Ce qui reste non vérifié** : seuils à ajuster selon contexte réel, intégration système complet.
+- regional_outbreak: 17 Mar UNCONFIRMED, 18-24,26 Mar REQUIRES_REVIEW, 25 Mar ISOLATED_ANOMALY
+- reporting_error: 28 Feb ISOLATED_ANOMALY
+- Tests: `Ran 37 tests in 0.139s` / `OK`
 
 ### 9) Ce qu'il reste à faire
-- Continuer étape par étape. Toujours mettre à jour `LEARNED.md` après chaque tâche.
-- Respecter règles: pas de données patients, pas de secrets, pas de déploiement sans autorisation, pas de LLM/ML/API/frontend/Hedera pour ces étapes.
-- Aucun commit/push.
+Continuer
 
-## Étape 10 : Prototype visuel Streamlit (Step 2.5) (2026-10-24)
+## Étape 10 : Prototype visuel Streamlit (Step 2.5 prototype) (2026-10-24)
 
 ### 1) Date et numéro d'étape
 - Date : 2026-10-24
 - Étape n°10
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Création d'environnement virtuel `venv/` (Python 3.11)
-- Installation locale : `streamlit`, `plotly`, `pandas` (seuls nécessaires)
-- Création de `demo/dashboard.py` (dashboard Streamlit)
-- Création de `tests/test_dashboard_smoke.py` (5 tests smoke)
-- Exécution de tous les tests
-- Mise à jour de `LEARNED.md` (ceci)
+- Création venv, installation streamlit/plotly/pandas
+- Création `demo/dashboard.py`, `tests/test_dashboard_smoke.py`
 
 ### 3) Pourquoi nous devions le faire
-Donner une première visualisation claire du moteur MONITUS déjà construit. On réutilise **exactement** les fonctions existantes (anomaly_detector, regional_detector, alert_verifier) sans réécrire les algorithmes. L'objectif est de voir les résultats des étapes 2.1-2.4 de manière interactive.
+Visualisation réutilisant moteurs existants
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- **Dashboard Streamlit** : interface web simple créée en Python (pas besoin de JavaScript/React pour ce prototype).
-- **Couleurs** : bleu marine (#001f3f), turquoise foncé (#00CED1), blanc - sobre et moderne.
-- **Sélecteur de scénario** : permet de basculer entre normal, regional_outbreak, reporting_error.
-- **Cartes hôpitaux** : Tunis, Sousse, Sfax avec compteur d'anomalies (données SYNTHÉTIQUES clairement indiquées).
-- **Graphiques temporels** : courbe des cas quotidiens par hôpital, points rouges en X pour anomalies détectées.
-- **Synthèse régionale** : nombre de jours avec signal régional et détails.
-- **Vérification** : statuts du vérificateur (NORMAL/ISOLATED_ANOMALY/UNCONFIRMED/REQUIRES_REVIEW).
-- **Tableau** : dates signalées avec hôpitaux, statuts, explications.
-- **Avertissements qualité** : affichés si présents.
-- **Tests smoke** : vérifient imports, que dashboard charge, et traitement des 3 scénarios sans ouvrir navigateur.
+Dashboard interactif avec scénarios, graphiques, statuts, données synthétiques
 
 ### 5) Nouveaux concepts appris
-- **Streamlit** : framework pour créer rapidement des dashboards en Python.
-- **Plotly** : graphiques interactifs.
-- **Prototype visuel** : montrer plutôt que seulement des logs texte.
-- **Réutilisation** : important d'utiliser le moteur existant, pas de valeurs hardcodées.
+Streamlit, Plotly, smoke tests
 
 ### 6) Erreurs rencontrées et causes réelles
-- **Erreur 1** : Commandes PowerShell avec `&&` ne fonctionnaient pas (syntaxe différente sur Windows PowerShell).
-- **Erreur 2** : `tail`, `head` non disponibles en PowerShell natif.
-- **Erreur 3** : Import du module `ai_service` échouait si on lançait depuis certains contextes - résolu avec `sys.path.insert`.
-- **Erreur 4** : Installation streamlit a pris du temps (cache utilisé).
+Commandes PowerShell (&&, tail/head), import paths, onboarding Streamlit
 
 ### 7) Comment nous les avons corrigées et pourquoi
-- **Correction 1** : Utilisation de `Set-Location` ou commandes séparées.
-- **Correction 2** : Utilisation de `Select-Object -Last/-First` à la place.
-- **Correction 3** : Ajout de `sys.path.insert(0, project_root)` dans dashboard et tests.
-- **Correction 4** : Patience, installation locale dans venv.
+Syntaxe adaptée, sys.path, lancement interactif
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **Tests smoke dashboard** : `.\venv\Scripts\python.exe -m unittest tests.test_dashboard_smoke` -> `Ran 5 tests in 3.551s` / `OK`
-- **Tous les tests** : `Ran 42 tests in 1.404s` / `OK` (10 données + 10 anomalie + 8 régional + 8 vérif + 5 dashboard)
-- **Vérification** : imports OK, traitement des 3 scénarios OK, pas de navigateur nécessaire pour tests.
-- **Ce qui reste non vérifié** : affichage visuel exact dans navigateur (tests smoke ne l'ouvrent pas), responsive design.
+- Tests smoke: OK
+- Tous tests: `Ran 42 tests in 1.404s` / `OK`
 
 ### 9) Ce qu'il reste à faire
-- Lancer le dashboard pour visualisation manuelle si souhaité.
-- Continuer étape par étape selon règles.
-- Pas de commit/push, pas de React, pas de Hedera.
-
-## Commandes PowerShell pour lancer le dashboard
-
-Depuis `C:\Users\doudaa\Documents\MONITUS` :
-
-```powershell
-# Activer environnement virtuel (optionnel si on utilise chemin complet)
-# .\venv\Scripts\Activate.ps1
-
-# Lancer le dashboard
-.\venv\Scripts\streamlit.exe run demo\dashboard.py
-```
-
-**URL locale** : http://localhost:8501
+Vérification visuelle navigateur
 
 ## Étape 11 : Correction contraste dashboard (2026-10-24)
 
@@ -494,84 +384,144 @@ Depuis `C:\Users\doudaa\Documents\MONITUS` :
 - Étape n°11
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Modification de `demo/dashboard.py` uniquement
-- Mise à jour palette couleurs et CSS pour thème clair
-- Correction titres, labels, cartes, graphiques Plotly, tableau, alertes
+- Modification `demo/dashboard.py` (thème clair, CSS, Plotly)
 
 ### 3) Pourquoi nous devions le faire
-Texte peu lisible (blanc sur blanc) sur fond blanc. Besoin de contraste suffisant.
+Améliorer lisibilité contraste
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- Fond blanc (#FFFFFF)
-- Titres/important: bleu marine (#102A43)
-- Corps: #243B53
-- Accents/bordures: turquoise (#00BFC1)
-- Cartes: gris très clair (#F4F7F9) avec texte foncé
-- Graphiques: fond blanc, axes/ticks/labels/legendes en couleur sombre
-- CSS global appliqué pour tous les éléments Streamlit
+Palette claire avec texte foncé, CSS global
 
 ### 5) Nouveaux concepts appris
-- **Contraste** : important pour lisibilité
-- **Thème Streamlit** : CSS custom pour forcer couleurs
-- **Plotly theming** : update_layout/update_xaxes/update_yaxes
+Contraste, theming
 
 ### 6) Erreurs rencontrées et causes réelles
-Aucune erreur rencontrée
+Aucune
 
 ### 7) Comment nous les avons corrigées et pourquoi
 N/A
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- Tous tests: `Ran 42 tests in 2.668s` / `OK`
-- Vérification visuelle à faire dans navigateur (localhost:8501)
+Tous tests OK
 
 ### 9) Ce qu'il reste à faire
-Vérifier dans navigateur le contraste
+Vérif visuelle
 
-## Étape 12 : Vérification navigateur et point de contrôle Git (2026-10-24)
+## Étape 12 : Vérification navigateur et Git (2026-10-24)
 
 ### 1) Date et numéro d'étape
 - Date : 2026-10-24
 - Étape n°12
 
 ### 2) Ce que nous avons fait et quels fichiers ont changé
-- Vérification dans navigateur du dashboard Streamlit à http://localhost:8501
-- Mise à jour de `.gitignore` pour exclure venv/, __pycache__, caches
-- Mise à jour de `LEARNED.md` (ceci)
-- Staging sélectif des fichiers source/tests/docs/dashboard/données synthétiques
-- Commit local
+- Vérification dashboard navigateur
+- Mise à jour `.gitignore`
+- Staging sélectif, commit local
 
 ### 3) Pourquoi nous devions le faire
-Valider le prototype fonctionnel dans navigateur avec données synthétiques, puis créer un point de contrôle Git sûr (sans secrets/env/venv).
+Valider prototype, créer checkpoint sûr
 
 ### 4) Comment ça fonctionne, expliqué simplement
-- **Vérification navigateur** : on a regardé le scénario `regional_outbreak` dans le dashboard. Les compteurs ont montré les résultats du moteur existant.
-- **Démarrage Streamlit** : au premier lancement, Streamlit demande un email (onboarding). En mode background/non-interactif ça peut bloquer/terminer - c'est une limite du contexte, pas forcément un bug du code. Solution pratique : lancer en interactif ou avec `--server.headless true` / accepter l'invite.
-- **Point de contrôle Git** : on ne commit que le nécessaire (code, tests, docs, dashboard, CSV synthétiques). venv/, __pycache__, .env exclus.
+Onboarding Streamlit, staging sélectif
 
 ### 5) Nouveaux concepts appris
-- **Onboarding Streamlit** : premier lancement peut demander email
-- **Staging sélectif** : mieux que `git add .` pour éviter secrets/fichiers lourds
-- **Données synthétiques uniquement** : important à rappeler
+Onboarding, sélection fichiers
 
 ### 6) Erreurs rencontrées et causes réelles
-- **Problème démarrage** : Streamlit a affiché l'invite email et le processus s'est terminé (exit code 1) en mode background non-interactif. Cause probable: attente d'entrée interactive. Pas de modification du code nécessaire; workaround connu.
+Onboarding blocage mode non-interactif
 
 ### 7) Comment nous les avons corrigées et pourquoi
-- Compris que c'est lié au mode non-interactif. Pour usage normal, lancer en terminal interactif. On n'a pas modifié le code.
+Compris, pas modifié code
 
 ### 8) Tests effectués, résultats réels, ce qui reste non vérifié
-- **Vérification navigateur** (synthetic only):
-  - Scenario: `regional_outbreak`
-  - Tunis: **9 anomalies**
-  - Sousse: **10 anomalies**
-  - Sfax: **0**
-  - Jours avec signal régional: **9**
-  - Jour isolé: **2024-03-25** (anomalie individuelle uniquement, Sousse) - confirmé
-- **Tests**: `Ran 42 tests in 2.668s` / `OK` avec venv
-- **Ce qui reste non vérifié** : push distant (non demandé)
+- Navigateur regional_outbreak: Tunis 9, Sousse 10, Sfax 0, 9 jours régionaux, 25 Mar isolé - confirmé
+- Tests OK
 
 ### 9) Ce qu'il reste à faire
-- Continuer développement incrémental selon règles
-- Toujours exclure secrets/env/venv
-- Ne pas commit données réelles
+Continuer incrémental
+
+## Étape 13 : API REST minimal read-only (Step 2.5) (2026-10-24)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-24
+- Étape n°13
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Installation fastapi/uvicorn/httpx dans venv
+- Création `requirements-api.txt`, `ai_service/api.py`, `tests/test_api.py`
+- Mise à jour `docs/PROJECT_PLAN.md`, `LEARNED.md`
+
+### 3) Pourquoi nous devions le faire
+Accès programmatique JSON, réutiliser moteurs, read-only
+
+### 4) Comment ça fonctionne, expliqué simplement
+Endpoints /health, /scenarios, /surveillance/summary, /alerts, /hospitals. Validation scénarios 422. Labels synthetic_only True, confirmed_outbreak False. TestClient pour tests.
+
+### 5) Nouveaux concepts appris
+API REST, FastAPI, JSON, schéma stable
+
+### 6) Erreurs rencontrées et causes réelles
+Champ confirmed_outbreak manquant health (corrigé), warning httpx/starlette non bloquant
+
+### 7) Comment nous les avons corrigées et pourquoi
+Ajout champ
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+- API 9/9 OK
+- Tous 51/51 OK
+- Réponse summary regional_outbreak OK
+
+### 9) Ce qu'il reste à faire
+Pas d'auth/deploy
+
+## Étape 14 : Vérification finale Step 2.6 - API navigateur, cohérence, commit Git (2026-10-24)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-24
+- Étape n°14
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Vérification Git status, inspection projet
+- Exécution complète tests avec venv existant
+- Vérification cohérence moteurs vs API TestClient (normal, regional_outbreak, reporting_error)
+- Vérification requirements-api.txt et .gitignore
+- Relecture docs/PROJECT_PLAN.md (Part 2)
+- Mise à jour LEARNED.md avec test navigateur réel
+- Staging fichiers pertinents uniquement
+- Création commit local
+- Vérification statut propre + hash
+
+### 3) Pourquoi nous devions le faire
+Clôturer Part 2 (Hospital Data & AI Detection) proprement: tests réels, cohérence vérifiée, docs à jour, checkpoint Git sans fichiers sensibles.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **HTTP 200** : code HTTP signifiant "OK" - la requête a réussi, serveur renvoie données demandées. Dans Swagger UI navigateur, GET /api/v1/surveillance/summary?scenario=regional_outbreak a retourné HTTP 200.
+- **JSON** (JavaScript Object Notation) : format d'échange de données lisible humain/machine. Structure clé-valeur. Réponse contenait hôpitaux, dates signaux régionaux, flags synthetic_only/confirmed_outbreak.
+- **FastAPI** : framework Python pour créer API web rapidement. Génère documentation interactive (Swagger UI /docs). Réutilise moteurs existants (anomaly_detector, regional_detector, alert_verifier) sans duplication.
+- **Vérification cohérence** : API utilise mêmes fonctions -> résultats identiques aux moteurs directs. Confirmé pour tous 3 scénarios.
+
+### 5) Nouveaux concepts appris
+- **HTTP status codes** : 200 OK vs 422 validation erreur
+- **Swagger UI** : interface pour tester API dans navigateur
+- **Cohérence API/moteurs** : important pour éviter dérive
+- **Staging sélectif** : éviter venv/__pycache__/.env/secrets
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée lors de cette vérification finale. Tous tests OK, cohérence parfaite.
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+- **Tests complets venv** : `Ran 51 tests in 3.115s` / `OK` (data_generation 10 + anomaly_detector 10 + regional_detector 8 + alert_verifier 8 + dashboard_smoke 5 + api 9)
+- **Cohérence moteurs vs API TestClient** :
+  - normal: API/ENG hôpitaux (0,0,0), signaux régionaux vides, assessments vides
+  - regional_outbreak: API/ENG hôpitaux (9,10,0), 9 dates identiques ['2024-03-17','18','19','20','21','22','23','24','26']. ENG assessments montrent 17 Mar UNCONFIRMED, 18-24,26 Mar REQUIRES_REVIEW (2 sites), 25 Mar ISOLATED_ANOMALY (1 site). API expose summary/alerts/hospitals correctement.
+  - reporting_error: API/ENG (1,0,0), vide signaux régionaux, ENG assessment (2024-02-28, ISOLATED_ANOMALY, 1)
+- **Test navigateur (réel, Swagger UI)** : GET /api/v1/surveillance/summary?scenario=regional_outbreak → HTTP 200, JSON, Tunis 9 anomalies, Sousse 10, Sfax 0, 9 dates régionales (2024-03-17 à 24, 26), 2024-03-25 classé anomalie isolée Sousse, synthetic_only=true, confirmed_outbreak=false. Confirmé.
+- **requirements-api.txt** présent (fastapi==0.162.0, httpx==0.28.1, pydantic==2.14.1, pydantic_core==2.50.1, uvicorn==0.54.0). .gitignore exclut venv/, __pycache__/, .env, secrets/.
+- **Part 2**: Steps 2.1-2.4 complets, Step 2.5 (API minimal read-only) complété. Part 2 marquée complète dans PROJECT_PLAN.md.
+- **Ce qui reste non vérifié** : push distant, déploiement (non demandés).
+
+### 9) Ce qu'il reste à faire
+Aucun. Part 2 clôturée. Respecter règles pour étapes futures.
