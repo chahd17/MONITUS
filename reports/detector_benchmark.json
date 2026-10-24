@@ -1,0 +1,398 @@
+{
+  "title": "MONITUS Detector Benchmark - Median/MAD vs EWMA",
+  "configuration": {
+    "mad_detector": {
+      "window_size": 21,
+      "threshold": 3.5,
+      "method": "median_mad"
+    },
+    "ewma_detector": {
+      "alpha": 0.2,
+      "initial_window": 21,
+      "threshold": 3.0,
+      "method": "ewma"
+    },
+    "data_source": "scripts/generate_hospital_data.py (seed 12345)",
+    "hospitals": [
+      "HOSP_TUN",
+      "HOSP_SOU",
+      "HOSP_SFX"
+    ],
+    "days": 90,
+    "start_date": "2024-01-01"
+  },
+  "evaluated_date_range": {
+    "note": "Only days with valid historical context per detector are evaluated",
+    "mad_warmup": "21 days history required (evaluates from day 22 onward)",
+    "ewma_warmup": "21 days seed required (evaluates from day 22 onward)"
+  },
+  "ground_truth_assumptions": {
+    "normal": "No synthetic events labeled as positive",
+    "regional_outbreak": "Sustained increase for HOSP_TUN, HOSP_SOU on days >= 76 (last 14 days). Sfax not labeled positive. Entire dataset NOT labeled anomalous.",
+    "reporting_error": "Single extreme spike on HOSP_TUN only (computed from generator RNG with seed 12345, replaying full generation order). Treated as simulated data-quality event, NOT confirmed disease outbreak.",
+    "uncertainty": "Labels derived from documented generator logic by replaying RNG consumption order; exact spike_day_offset computed deterministically from seed."
+  },
+  "detectors": {
+    "median_mad": {
+      "normal": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 0,
+          "FP": 0,
+          "TN": 207,
+          "FN": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "none"
+        }
+      },
+      "regional_outbreak": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 9,
+            "FP": 0,
+            "TN": 55,
+            "FN": 5,
+            "precision": 1.0,
+            "recall": 0.6428571428571429,
+            "f1": 0.782608695652174,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 10,
+            "FP": 0,
+            "TN": 55,
+            "FN": 4,
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333333333333,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 19,
+          "FP": 0,
+          "TN": 179,
+          "FN": 9,
+          "precision": 1.0,
+          "recall": 0.6785714285714286,
+          "f1": 0.8085106382978724,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "sustained_regional_increase",
+          "onset_date": "2024-03-17",
+          "event_hospitals": [
+            "HOSP_TUN",
+            "HOSP_SOU"
+          ],
+          "notes": "Sustained increase over last 14 days (days >= outbreak_start_offset)"
+        },
+        "first_detection_delay": {
+          "detected": true,
+          "delay_days": 0,
+          "max_delay_days": 0,
+          "details": "First TP at 0 days after onset"
+        }
+      },
+      "reporting_error": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 1,
+            "FP": 0,
+            "TN": 68,
+            "FN": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 1,
+          "FP": 0,
+          "TN": 206,
+          "FN": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "single_day_extreme_spike",
+          "spike_date": "2024-02-28",
+          "event_hospital": "HOSP_TUN",
+          "notes": "Simulated data-quality event, NOT a confirmed disease outbreak"
+        },
+        "first_detection_delay": {
+          "detected": true,
+          "delay_days": 0,
+          "details": "Detected on spike day"
+        }
+      }
+    },
+    "ewma": {
+      "normal": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 0,
+          "FP": 0,
+          "TN": 207,
+          "FN": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "none"
+        }
+      },
+      "regional_outbreak": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 1,
+            "FP": 0,
+            "TN": 55,
+            "FN": 13,
+            "precision": 1.0,
+            "recall": 0.07142857142857142,
+            "f1": 0.13333333333333333,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 1,
+            "FP": 0,
+            "TN": 55,
+            "FN": 13,
+            "precision": 1.0,
+            "recall": 0.07142857142857142,
+            "f1": 0.13333333333333333,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 2,
+          "FP": 0,
+          "TN": 179,
+          "FN": 26,
+          "precision": 1.0,
+          "recall": 0.07142857142857142,
+          "f1": 0.13333333333333333,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "sustained_regional_increase",
+          "onset_date": "2024-03-17",
+          "event_hospitals": [
+            "HOSP_TUN",
+            "HOSP_SOU"
+          ],
+          "notes": "Sustained increase over last 14 days (days >= outbreak_start_offset)"
+        },
+        "first_detection_delay": {
+          "detected": true,
+          "delay_days": 0,
+          "max_delay_days": 0,
+          "details": "First TP at 0 days after onset"
+        }
+      },
+      "reporting_error": {
+        "hospitals": {
+          "HOSP_TUN": {
+            "TP": 1,
+            "FP": 0,
+            "TN": 68,
+            "FN": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "evaluated_days": 69
+          },
+          "HOSP_SOU": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          },
+          "HOSP_SFX": {
+            "TP": 0,
+            "FP": 0,
+            "TN": 69,
+            "FN": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "evaluated_days": 69
+          }
+        },
+        "overall": {
+          "TP": 1,
+          "FP": 0,
+          "TN": 206,
+          "FN": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "evaluated_days": 207
+        },
+        "events": {
+          "type": "single_day_extreme_spike",
+          "spike_date": "2024-02-28",
+          "event_hospital": "HOSP_TUN",
+          "notes": "Simulated data-quality event, NOT a confirmed disease outbreak"
+        },
+        "first_detection_delay": {
+          "detected": true,
+          "delay_days": 0,
+          "details": "Detected on spike day"
+        }
+      }
+    }
+  },
+  "threshold_sensitivity": {
+    "mad_threshold_2.5": {
+      "total_flags_regional_outbreak": 21
+    },
+    "mad_threshold_3.0": {
+      "total_flags_regional_outbreak": 20
+    },
+    "mad_threshold_3.5": {
+      "total_flags_regional_outbreak": 19
+    },
+    "mad_threshold_4.0": {
+      "total_flags_regional_outbreak": 18
+    },
+    "ewma_threshold_2.0": {
+      "total_flags_regional_outbreak": 5
+    },
+    "ewma_threshold_2.5": {
+      "total_flags_regional_outbreak": 3
+    },
+    "ewma_threshold_3.0": {
+      "total_flags_regional_outbreak": 2
+    },
+    "ewma_threshold_3.5": {
+      "total_flags_regional_outbreak": 2
+    }
+  },
+  "limitations": [
+    "Synthetic data only - no clinical accuracy claims",
+    "Ground truth based on generator construction, not real outbreaks",
+    "Warm-up days excluded from evaluation",
+    "Detectors not tuned; default/standard parameters used",
+    "Event detection metrics are scenario-specific",
+    "Regional outbreak is sustained increase (14 days) - 'first detection' measured from onset",
+    "Reporting error treated as data-quality event, not disease outbreak"
+  ]
+}
