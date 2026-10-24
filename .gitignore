@@ -29,6 +29,7 @@ ENV/
 env.bak/
 venv.bak/
 *.pyc
+.pytest_cache/
 
 # Node
 node_modules/
