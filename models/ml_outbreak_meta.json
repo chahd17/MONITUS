@@ -1,0 +1,91 @@
+{
+  "model_type": "LogisticRegression",
+  "interpreter": "linear",
+  "feature_names": [
+    "median_hist",
+    "mean_hist",
+    "std_hist",
+    "mad_hist",
+    "q25",
+    "q75",
+    "iqr",
+    "current",
+    "current_minus_median",
+    "robust_zscore",
+    "current_over_mean",
+    "mean_last7",
+    "mean_last7_minus_prev7",
+    "last7_over_prev7",
+    "diff1",
+    "diff2",
+    "range_hist",
+    "trend_slope"
+  ],
+  "window_size": 21,
+  "threshold": 0.1,
+  "class_weight": "balanced",
+  "train_seeds": [
+    1001,
+    1002,
+    1003,
+    1004,
+    1005
+  ],
+  "val_seeds": [
+    2001,
+    2002
+  ],
+  "test_seeds": [
+    3001,
+    3002,
+    3003
+  ],
+  "train_configs": [
+    [
+      1001,
+      "normal"
+    ],
+    [
+      1002,
+      "outbreak"
+    ],
+    [
+      1003,
+      "outbreak"
+    ],
+    [
+      1004,
+      "outbreak"
+    ],
+    [
+      1005,
+      "outbreak"
+    ]
+  ],
+  "val_configs": [
+    [
+      2001,
+      "outbreak"
+    ],
+    [
+      2002,
+      "normal"
+    ]
+  ],
+  "test_configs": [
+    [
+      3001,
+      "outbreak"
+    ],
+    [
+      3002,
+      "outbreak"
+    ],
+    [
+      3003,
+      "normal"
+    ]
+  ],
+  "random_state": 42,
+  "notes": "Trained on independent synthetic simulations, split by whole runs. No data leakage. Reporting errors treated as negative."
+}
