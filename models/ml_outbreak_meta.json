@@ -22,23 +22,33 @@
     "trend_slope"
   ],
   "window_size": 21,
-  "threshold": 0.1,
+  "window_semantics": "20 previous observations plus today's observation; first sample at observation 21",
+  "threshold": 0.6500000000000001,
   "class_weight": "balanced",
   "train_seeds": [
     1001,
     1002,
     1003,
     1004,
-    1005
+    1005,
+    1006,
+    1007,
+    1008
   ],
   "val_seeds": [
     2001,
-    2002
+    2002,
+    2003,
+    2004,
+    2005
   ],
   "test_seeds": [
     3001,
     3002,
-    3003
+    3003,
+    3004,
+    3005,
+    3006
   ],
   "train_configs": [
     [
@@ -60,6 +70,18 @@
     [
       1005,
       "outbreak"
+    ],
+    [
+      1006,
+      "reporting_error"
+    ],
+    [
+      1007,
+      "reporting_error"
+    ],
+    [
+      1008,
+      "reporting_error"
     ]
   ],
   "val_configs": [
@@ -70,6 +92,18 @@
     [
       2002,
       "normal"
+    ],
+    [
+      2003,
+      "reporting_error"
+    ],
+    [
+      2004,
+      "reporting_error"
+    ],
+    [
+      2005,
+      "reporting_error"
     ]
   ],
   "test_configs": [
@@ -84,8 +118,26 @@
     [
       3003,
       "normal"
+    ],
+    [
+      3004,
+      "reporting_error"
+    ],
+    [
+      3005,
+      "reporting_error"
+    ],
+    [
+      3006,
+      "reporting_error"
     ]
   ],
   "random_state": 42,
-  "notes": "Trained on disjoint synthetic simulation runs. Scaler fitted on training data; threshold selected on validation data. Reporting errors treated as negative."
+  "software_versions": {
+    "python": "3.13.5",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0"
+  },
+  "notes": "Synthetic simulations only, including independent reporting-error runs in every split, labeled non-outbreak. Scaler fitted on training data; threshold selected on validation data. Scores do not establish clinical performance."
 }

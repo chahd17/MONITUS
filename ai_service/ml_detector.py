@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 ML-based detector for sustained elevated respiratory-case patterns.
-Uses only causal features (past observations). Loads trained model artifacts.
+Uses 21 observations including today, with no future observations. Synthetic
+same-day pattern detection only, not a clinical diagnosis or future forecast.
 """
 from __future__ import annotations
 
