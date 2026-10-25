@@ -3,9 +3,10 @@
 """
 Train a small interpretable ML detector for sustained elevated respiratory-case patterns.
 Generates multiple independent synthetic simulations with separate seeds.
-Split by whole simulation runs BEFORE fitting. No data leakage.
+Split by whole simulation runs before fitting; synthetic evaluation only.
 """
 from __future__ import annotations
+from ai_service.ml_features import build_causal_features, get_feature_names
 
 import csv
 import json
@@ -111,72 +112,8 @@ class MLSyntheticGenerator:
         return rows
 
 
-def build_causal_features(history_values: List[float], window_size: int = 21) -> np.ndarray:
-    """
-    Build causal features using only past observations.
-    history_values includes current day? No - we pass history up to t-1 for prediction at t,
-    or we need to be careful about causality.
-    """
-    if len(history_values) < window_size:
-        raise ValueError(f"Need at least {window_size} history values")
-
-    hist = np.array(history_values[-window_size:], dtype=float)
-    features = []
-
-    median_hist = np.median(hist)
-    mean_hist = np.mean(hist)
-    std_hist = np.std(hist, ddof=0)
-    mad_hist = np.median(np.abs(hist - median_hist))
-    q25 = np.percentile(hist, 25)
-    q75 = np.percentile(hist, 75)
-    iqr = q75 - q25
-
-    features.append(median_hist)
-    features.append(mean_hist)
-    features.append(std_hist)
-    features.append(mad_hist)
-    features.append(q25)
-    features.append(q75)
-    features.append(iqr)
-
-    # Use last value as current (most recent in history)
-    current = hist[-1]
-    features.append(current)
-    features.append(current - median_hist)
-    features.append((current - median_hist) / (mad_hist * 1.4826 + 1e-8))
-    features.append(current / (mean_hist + 1e-8))
-
-    if len(hist) >= 14:
-        last7 = hist[-7:]
-        prev7 = hist[-14:-7]
-        features.append(np.mean(last7))
-        features.append(np.mean(last7) - np.mean(prev7))
-        features.append(np.mean(last7) / (np.mean(prev7) + 1e-8))
-    else:
-        features.append(np.mean(hist[-min(7, len(hist)):]))
-        features.append(0.0)
-        features.append(1.0)
-
-    if len(hist) >= 3:
-        features.append(hist[-1] - hist[-2])
-        features.append(hist[-1] - hist[-3])
-    else:
-        features.append(0.0)
-        features.append(0.0)
-
-    features.append(np.max(hist) - np.min(hist))
-    features.append((hist[-1] - hist[0]) / len(hist))
-
-    return np.array(features)
 
 
-def get_feature_names():
-    return [
-        "median_hist", "mean_hist", "std_hist", "mad_hist", "q25", "q75", "iqr",
-        "current", "current_minus_median", "robust_zscore", "current_over_mean",
-        "mean_last7", "mean_last7_minus_prev7", "last7_over_prev7",
-        "diff1", "diff2", "range_hist", "trend_slope"
-    ]
 
 
 def label_outbreak_day(scenario_type: str, day_idx: int, days_total: int, hospital_id: str) -> int:
@@ -196,6 +133,41 @@ def label_outbreak_day(scenario_type: str, day_idx: int, days_total: int, hospit
     elif scenario_type == 'normal':
         return 0
     return 0
+
+
+
+def calculate_event_detection_delays(meta_test, test_pred, y_test):
+    """Measure delays for labeled outbreak events, grouped by simulation and hospital."""
+    from datetime import date
+
+    groups = {}
+    for metadata, prediction, label in zip(meta_test, test_pred, y_test):
+        key = (metadata["sim_id"], metadata["hospital_id"])
+        groups.setdefault(key, []).append(
+            (date.fromisoformat(str(metadata["date"])), int(prediction), int(label))
+        )
+
+    delays = []
+    missed_events = 0
+
+    for observations in groups.values():
+        observations.sort(key=lambda item: item[0])
+        onset_dates = [day for day, _, label in observations if label == 1]
+        if not onset_dates:
+            continue
+
+        onset = onset_dates[0]
+        detected_dates = [
+            day for day, prediction, _ in observations
+            if day >= onset and prediction == 1
+        ]
+
+        if detected_dates:
+            delays.append((detected_dates[0] - onset).days)
+        else:
+            missed_events += 1
+
+    return delays, missed_events
 
 
 def main():
@@ -238,10 +210,9 @@ def main():
                     # Need >= window_size prior days to make prediction
                     if len(history) >= window_size + 1:  # have history of window_size+1
                         # Use history up to idx (current) for features - causal (all past including current)
-                        feat_hist = history[-(window_size + 1):-1] + [history[-1]] if False else history[-window_size:]  # better: use last window_size
                         # Actually use last window_size elements as history window
                         feat_hist = history[-window_size:]
-                        X_list.append(build_causal_features_from_window(feat_hist))
+                        X_list.append(build_causal_features(feat_hist, window_size))
                         y_list.append(label_outbreak_day(scen_type, idx, gen.days, hid))
                         meta_list.append({
                             'sim_id': f'sim_{sim_seed}',
@@ -252,37 +223,6 @@ def main():
                         })
         return np.array(X_list), np.array(y_list), meta_list
 
-    def build_causal_features_from_window(feat_hist):
-        hist = np.array(feat_hist, dtype=float)
-        features = []
-        median_hist = np.median(hist)
-        mean_hist = np.mean(hist)
-        std_hist = np.std(hist, ddof=0)
-        mad_hist = np.median(np.abs(hist - median_hist))
-        q25 = np.percentile(hist, 25)
-        q75 = np.percentile(hist, 75)
-        iqr = q75 - q25
-        features.extend([median_hist, mean_hist, std_hist, mad_hist, q25, q75, iqr])
-        current = hist[-1]
-        features.append(current)
-        features.append(current - median_hist)
-        features.append((current - median_hist) / (mad_hist * 1.4826 + 1e-8))
-        features.append(current / (mean_hist + 1e-8))
-        if len(hist) >= 14:
-            last7 = hist[-7:]; prev7 = hist[-14:-7]
-            features.append(np.mean(last7))
-            features.append(np.mean(last7) - np.mean(prev7))
-            features.append(np.mean(last7) / (np.mean(prev7) + 1e-8))
-        else:
-            features.append(np.mean(hist[-min(7,len(hist)):]))
-            features.append(0.0); features.append(1.0)
-        if len(hist) >= 3:
-            features.append(hist[-1]-hist[-2]); features.append(hist[-1]-hist[-3])
-        else:
-            features.append(0.0); features.append(0.0)
-        features.append(np.max(hist)-np.min(hist))
-        features.append((hist[-1]-hist[0])/len(hist))
-        return features
 
     X_train, y_train, meta_train = collect_data(train_configs)
     X_val, y_val, meta_val = collect_data(val_configs)
@@ -324,29 +264,7 @@ def main():
     cm = confusion_matrix(y_test, test_pred)
     prec, rec, f1, _ = precision_recall_fscore_support(y_test, test_pred, average='binary', zero_division=0)
 
-    # Event detection delay - for sustained outbreaks in test
-    delays = []
-    # Group test by sim/hosp
-    test_by_group = {}
-    for i, m in enumerate(meta_test):
-        key = (m['sim_id'], m['hospital_id'])
-        if key not in test_by_group:
-            test_by_group[key] = []
-        test_by_group[key].append((i, m, test_pred[i], y_test[i]))
-    for key, items in test_by_group.items():
-        # items in order of appearance
-        items_sorted = sorted(items, key=lambda x: meta_test[x[0]]['date'])
-        # find first true positive onset - outbreak starts at day 76 (90-14) for outbreaks
-        for it in items_sorted:
-            idx_in_hosp = items_sorted.index(it)
-            # approximate
-            if it[3] == 1 and it[2] == 1:  # true positive prediction on event day
-                delays.append(0)  # simplified
-                break
-        else:
-            if any(it[3] == 1 for it in items_sorted):
-                # found event but maybe missed
-                pass
+    delays, missed_events = calculate_event_detection_delays(meta_test, test_pred, y_test)
 
     feature_names = get_feature_names()
 
@@ -368,7 +286,7 @@ def main():
         "val_configs": [(s, c) for s, c in val_configs],
         "test_configs": [(s, c) for s, c in test_configs],
         "random_state": 42,
-        "notes": "Trained on independent synthetic simulations, split by whole runs. No data leakage. Reporting errors treated as negative."
+        "notes": "Trained on disjoint synthetic simulation runs. Scaler fitted on training data; threshold selected on validation data. Reporting errors treated as negative."
     }
     with (MODELS_DIR / "ml_outbreak_meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
@@ -382,7 +300,7 @@ def main():
         },
         "split_method": "By whole simulation runs (separate seeds). No day-level random split. Train/val/test disjoint.",
         "labels": "Generator-derived: regional outbreak last 14 days for HOSP_TUN/HOSP_SOU = 1; reporting_error and normal = 0 (data-quality treated separately).",
-        "features": {"causal": True, "window_size": window_size, "names": feature_names, "notes": "Only past/current observations within window, no future-derived features."},
+        "features": {"causal": True, "window_size": window_size, "names": feature_names, "notes": "Uses 21 observations including the current day; no later observations are required."},
         "model": {"type": "LogisticRegression", "class_weight": "balanced", "max_iter": 1000, "random_state": 42},
         "threshold_selection": {"method": "chosen on validation runs only", "best_threshold": float(best_thresh), "val_f1_at_best": float(best_f1)},
         "held_out_test_evaluation": {
@@ -392,7 +310,13 @@ def main():
             "f1": float(f1),
             "n_samples": int(len(X_test))
         },
-        "event_detection_delay": {"note": "Measured on sustained outbreak days in held-out test", "delays_days": delays},
+        "event_detection_delay": {
+            "note": "Days from first labeled outbreak observation to first positive prediction on or after onset; detected events only.",
+            "delays_days": delays,
+            "detected_events": len(delays),
+            "missed_events": missed_events,
+            "total_outbreak_events": len(delays) + missed_events
+        },
         "limitations": [
             "Synthetic data only - no clinical validation",
             "Small number of simulations",
@@ -404,7 +328,7 @@ def main():
             "scaler": str(MODELS_DIR / "ml_outbreak_scaler.joblib"),
             "metadata": str(MODELS_DIR / "ml_outbreak_meta.json")
         },
-        "reproducibility": {"seeds_fixed": True, "scaler_fitted_on_train_only": True, "no_leakage": True}
+        "reproducibility": {"seeds_fixed": True, "scaler_fitted_on_train_only": True, "split_by_simulation": True}
     }
 
     with (REPORTS_DIR / "ml_evaluation.json").open("w", encoding="utf-8") as f:

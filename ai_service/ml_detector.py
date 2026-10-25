@@ -12,6 +12,7 @@ from typing import Dict, List, Any
 
 import joblib
 import numpy as np
+from ai_service.ml_features import build_causal_features
 
 
 class MLDetector:
@@ -33,71 +34,9 @@ class MLDetector:
         self.window_size = self.meta["window_size"]
 
     def build_causal_features_for_row(self, history_values: List[float]) -> np.ndarray:
-        """
-        Build causal features using only history (past observations).
-        history_values are in chronological order, most recent last.
-        Must have >= window_size elements.
-        """
-        if len(history_values) < self.window_size:
-            raise ValueError(f"Need at least {self.window_size} history values")
-
-        hist = np.array(history_values[-self.window_size:], dtype=float)  # last window_size
-        features = []
-
-        # Baseline stats from history
-        median_hist = np.median(hist)
-        mean_hist = np.mean(hist)
-        std_hist = np.std(hist, ddof=0) if len(hist) > 0 else 0.0
-        mad_hist = np.median(np.abs(hist - median_hist))
-        q25 = np.percentile(hist, 25)
-        q75 = np.percentile(hist, 75)
-        iqr = q75 - q25
-
-        features.append(median_hist)
-        features.append(mean_hist)
-        features.append(std_hist)
-        features.append(mad_hist)
-        features.append(q25)
-        features.append(q75)
-        features.append(iqr)
-
-        # Current vs baseline (but current is the last element? no - features are built from history before current)
-        # For prediction at current time t using history t-window_size:t-1? Or including up to t-1
-        # We need causal features using current and PAST observations only
-        if len(history_values) >= 1:
-            current = history_values[-1]
-        else:
-            current = mean_hist
-        features.append(current)
-        features.append(current - median_hist)
-        features.append((current - median_hist) / (mad_hist * 1.4826 + 1e-8))
-        features.append(current / (mean_hist + 1e-8))
-
-        # Recent trends (last 7 days vs earlier)
-        if len(hist) >= 14:
-            last7 = hist[-7:]
-            prev7 = hist[-14:-7]
-            features.append(np.mean(last7))
-            features.append(np.mean(last7) - np.mean(prev7))
-            features.append(np.mean(last7) / (np.mean(prev7) + 1e-8))
-        else:
-            features.append(np.mean(hist[-min(7, len(hist)):]))
-            features.append(0.0)
-            features.append(1.0)
-
-        # Growth
-        if len(hist) >= 3:
-            features.append(hist[-1] - hist[-2])
-            features.append(hist[-1] - hist[-3])
-        else:
-            features.append(0.0)
-            features.append(0.0)
-
-        # Variability
-        features.append(np.max(hist) - np.min(hist))
-        features.append((hist[-1] - hist[0]) / len(hist) if len(hist) > 0 else 0.0)
-
-        return np.array(features).reshape(1, -1)
+        """Build features from the latest window, including today's observation."""
+        features = build_causal_features(history_values, self.window_size)
+        return features.reshape(1, -1)
 
     def predict_proba(self, history_values: List[float]) -> float:
         """Predict probability of sustained outbreak pattern."""

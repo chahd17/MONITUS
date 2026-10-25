@@ -87,5 +87,5 @@
     ]
   ],
   "random_state": 42,
-  "notes": "Trained on independent synthetic simulations, split by whole runs. No data leakage. Reporting errors treated as negative."
+  "notes": "Trained on disjoint synthetic simulation runs. Scaler fitted on training data; threshold selected on validation data. Reporting errors treated as negative."
 }
