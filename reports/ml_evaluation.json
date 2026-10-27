@@ -1,0 +1,315 @@
+{
+  "title": "MONITUS ML Detector Evaluation (Held-out Synthetic Runs Only)",
+  "dataset_sizes": {
+    "train": {
+      "n_samples": 1680,
+      "n_pos": 112,
+      "n_neg": 1568,
+      "n_sims": 8,
+      "scenarios": {
+        "normal": {
+          "n_sims": 1,
+          "n_samples": 210,
+          "n_pos": 0,
+          "n_neg": 210,
+          "n_error_spikes": 0
+        },
+        "outbreak": {
+          "n_sims": 4,
+          "n_samples": 840,
+          "n_pos": 112,
+          "n_neg": 728,
+          "n_error_spikes": 0
+        },
+        "reporting_error": {
+          "n_sims": 3,
+          "n_samples": 630,
+          "n_pos": 0,
+          "n_neg": 630,
+          "n_error_spikes": 3
+        }
+      }
+    },
+    "val": {
+      "n_samples": 1050,
+      "n_pos": 28,
+      "n_neg": 1022,
+      "n_sims": 5,
+      "scenarios": {
+        "normal": {
+          "n_sims": 1,
+          "n_samples": 210,
+          "n_pos": 0,
+          "n_neg": 210,
+          "n_error_spikes": 0
+        },
+        "outbreak": {
+          "n_sims": 1,
+          "n_samples": 210,
+          "n_pos": 28,
+          "n_neg": 182,
+          "n_error_spikes": 0
+        },
+        "reporting_error": {
+          "n_sims": 3,
+          "n_samples": 630,
+          "n_pos": 0,
+          "n_neg": 630,
+          "n_error_spikes": 3
+        }
+      }
+    },
+    "test": {
+      "n_samples": 1260,
+      "n_pos": 56,
+      "n_neg": 1204,
+      "n_sims": 6,
+      "scenarios": {
+        "normal": {
+          "n_sims": 1,
+          "n_samples": 210,
+          "n_pos": 0,
+          "n_neg": 210,
+          "n_error_spikes": 0
+        },
+        "outbreak": {
+          "n_sims": 2,
+          "n_samples": 420,
+          "n_pos": 56,
+          "n_neg": 364,
+          "n_error_spikes": 0
+        },
+        "reporting_error": {
+          "n_sims": 3,
+          "n_samples": 630,
+          "n_pos": 0,
+          "n_neg": 630,
+          "n_error_spikes": 3
+        }
+      }
+    }
+  },
+  "simulation_configs": {
+    "train": [
+      [
+        1001,
+        "normal"
+      ],
+      [
+        1002,
+        "outbreak"
+      ],
+      [
+        1003,
+        "outbreak"
+      ],
+      [
+        1004,
+        "outbreak"
+      ],
+      [
+        1005,
+        "outbreak"
+      ],
+      [
+        1006,
+        "reporting_error"
+      ],
+      [
+        1007,
+        "reporting_error"
+      ],
+      [
+        1008,
+        "reporting_error"
+      ]
+    ],
+    "val": [
+      [
+        2001,
+        "outbreak"
+      ],
+      [
+        2002,
+        "normal"
+      ],
+      [
+        2003,
+        "reporting_error"
+      ],
+      [
+        2004,
+        "reporting_error"
+      ],
+      [
+        2005,
+        "reporting_error"
+      ]
+    ],
+    "test": [
+      [
+        3001,
+        "outbreak"
+      ],
+      [
+        3002,
+        "outbreak"
+      ],
+      [
+        3003,
+        "normal"
+      ],
+      [
+        3004,
+        "reporting_error"
+      ],
+      [
+        3005,
+        "reporting_error"
+      ],
+      [
+        3006,
+        "reporting_error"
+      ]
+    ]
+  },
+  "split_method": "By whole simulation runs (separate seeds). No day-level random split. Train/val/test disjoint.",
+  "labels": "Generator-derived: outbreak last 14 days for HOSP_TUN/HOSP_SOU = 1; normal and all reporting_error days = 0. The classifier does not diagnose data-quality issues.",
+  "reporting_error_design": "One isolated one-day batch/entry spike per run, random fictional hospital, day index 20..69, additional count 15..120, then baseline. Three independent runs per split; event flags are evaluation metadata, never features.",
+  "features": {
+    "causal": true,
+    "window_size": 21,
+    "names": [
+      "median_hist",
+      "mean_hist",
+      "std_hist",
+      "mad_hist",
+      "q25",
+      "q75",
+      "iqr",
+      "current",
+      "current_minus_median",
+      "robust_zscore",
+      "current_over_mean",
+      "mean_last7",
+      "mean_last7_minus_prev7",
+      "last7_over_prev7",
+      "diff1",
+      "diff2",
+      "range_hist",
+      "trend_slope"
+    ],
+    "notes": "Uses 21 observations including the current day; first sample at observation 21. Same-day detection, not future forecasting. No later observations are required."
+  },
+  "model": {
+    "type": "LogisticRegression",
+    "class_weight": "balanced",
+    "max_iter": 1000,
+    "random_state": 42
+  },
+  "threshold_selection": {
+    "method": "chosen on validation runs only",
+    "best_threshold": 0.6500000000000001,
+    "val_f1_at_best": 0.9333333333333333
+  },
+  "held_out_test_evaluation": {
+    "confusion_matrix": {
+      "tn": 1200,
+      "fp": 4,
+      "fn": 1,
+      "tp": 55
+    },
+    "precision": 0.9322033898305084,
+    "recall": 0.9821428571428571,
+    "f1": 0.9565217391304348,
+    "n_samples": 1260,
+    "false_positive_rate": 0.0033222591362126247
+  },
+  "held_out_test_by_scenario": {
+    "normal": {
+      "confusion_matrix": {
+        "tn": 210,
+        "fp": 0,
+        "fn": 0,
+        "tp": 0
+      },
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "n_samples": 210,
+      "false_positive_rate": 0.0
+    },
+    "outbreak": {
+      "confusion_matrix": {
+        "tn": 364,
+        "fp": 0,
+        "fn": 1,
+        "tp": 55
+      },
+      "precision": 1.0,
+      "recall": 0.9821428571428571,
+      "f1": 0.990990990990991,
+      "n_samples": 420,
+      "false_positive_rate": 0.0
+    },
+    "reporting_error": {
+      "confusion_matrix": {
+        "tn": 626,
+        "fp": 4,
+        "fn": 0,
+        "tp": 0
+      },
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "n_samples": 630,
+      "false_positive_rate": 0.006349206349206349
+    }
+  },
+  "held_out_reporting_error_spikes": {
+    "confusion_matrix": {
+      "tn": 0,
+      "fp": 3,
+      "fn": 0,
+      "tp": 0
+    },
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_samples": 3,
+    "false_positive_rate": 1.0
+  },
+  "metric_notes": "Precision/recall/F1 use zero_division=0. All-negative scenarios have no positive-class recall to estimate; inspect their FP counts/rates. Samples overlap within runs and are not independent clinical observations.",
+  "event_detection_delay": {
+    "note": "Days from first labeled outbreak observation to first positive prediction on or after onset; detected events only.",
+    "delays_days": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "detected_events": 4,
+    "missed_events": 0,
+    "total_outbreak_events": 4
+  },
+  "limitations": [
+    "Synthetic data only - no clinical validation",
+    "Small fixed set of simulations from one simplified generator family; held-out seeds do not establish real-world generalization",
+    "Only one isolated reporting spike per error run; no missing reports, multi-day backlogs or mixed outbreak/error events",
+    "Moderate reporting spikes overlap outbreak counts; same-day features cannot always distinguish causes",
+    "Reporting errors labeled negative by design, not identified as data-quality alerts by this classifier",
+    "Overlapping windows are correlated; metrics are descriptive and have no confidence intervals",
+    "Existing test seeds were inspected in a previous review cycle; these results are not a fresh external validation",
+    "Model not connected to API/dashboard"
+  ],
+  "artifacts": {
+    "model": "models/ml_outbreak_model.joblib",
+    "scaler": "models/ml_outbreak_scaler.joblib",
+    "metadata": "models/ml_outbreak_meta.json"
+  },
+  "reproducibility": {
+    "seeds_fixed": true,
+    "scaler_fitted_on_train_only": true,
+    "split_by_simulation": true
+  }
+}
