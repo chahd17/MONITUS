@@ -37,9 +37,9 @@ def run_federated_training(
     """
     np.random.seed(random_state)
     random.seed(random_state)
-    
+
     partitions = partition_hospital_data()
-    
+
     # Initialize global model
     global_model = BinaryLogisticRegression(
         n_features=18,
@@ -49,7 +49,7 @@ def run_federated_training(
         random_state=random_state,
     )
     global_params = global_model.get_params()
-    
+
     # Create clients (one per hospital)
     clients = {}
     for hid in HOSPITAL_IDS:
@@ -60,7 +60,7 @@ def run_federated_training(
             local_iterations=local_iterations,
             random_state=random_state,
         )
-    
+
     history = []
     for round_num in range(n_rounds):
         # Collect updates from all clients starting from identical global params
@@ -72,7 +72,7 @@ def run_federated_training(
         # Aggregate
         global_params = FederatedAggregator.aggregate(updates)
         history.append({"round": round_num, "n_clients": len(updates)})
-    
+
     return {
         "global_params": global_params,
         "history": history,
@@ -92,9 +92,9 @@ def run_centralized_baseline(
     """
     np.random.seed(random_state)
     random.seed(random_state)
-    
+
     partitions = partition_hospital_data()
-    
+
     # Pool training data only (explicitly labeled offline benchmark)
     X_train_list = []
     y_train_list = []
@@ -103,7 +103,7 @@ def run_centralized_baseline(
         y_train_list.append(partitions["train"][hid]["y"])
     X_train = np.vstack(X_train_list)
     y_train = np.concatenate(y_train_list)
-    
+
     model = BinaryLogisticRegression(
         n_features=18,
         learning_rate=learning_rate,
@@ -112,7 +112,7 @@ def run_centralized_baseline(
         random_state=random_state,
     )
     model.fit(X_train, y_train)
-    
+
     return {
         "model": model,
         "params": model.get_params(),

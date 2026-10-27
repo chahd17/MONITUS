@@ -53,7 +53,7 @@ def partition_hospital_data(
 ) -> Dict[str, Dict[str, Dict[str, Any]]]:
     """
     Construct local hospital partitions per split.
-    
+
     Returns structure:
     {
       "train": {
@@ -63,7 +63,7 @@ def partition_hospital_data(
       "val": {...},
       "test": {...}
     }
-    
+
     Each partition contains only its hospital's data. No raw records pooled across
     hospitals in this function. Provenance metadata includes sim_id, sim_seed,
     hospital_id, date, scenario, split, is_reporting_error.
@@ -71,12 +71,12 @@ def partition_hospital_data(
     if sim_configs_by_split is None:
         sim_configs_by_split = get_simulation_configs()
     _validate_partition_inputs(sim_configs_by_split)
-    
+
     gen = generator if generator is not None else MLSyntheticGenerator()
     if gen.window_size != window_size:
         # Allow override but warn via behavior
         pass
-    
+
     result = {}
     for split in ["train", "val", "test"]:
         result[split] = {}
@@ -86,10 +86,10 @@ def partition_hospital_data(
                 "y": [],
                 "meta": [],
             }
-    
+
     # Track seen (sim_seed, split) for auditing
     all_seen_seeds = set()
-    
+
     for split in ["train", "val", "test"]:
         for sim_seed, scen_type in sim_configs_by_split[split]:
             if sim_seed in all_seen_seeds:
@@ -128,7 +128,7 @@ def partition_hospital_data(
                             "split": split,
                             "is_reporting_error": bool(row.get("is_reporting_error", False)),
                         })
-    
+
     # Convert to arrays
     final_result = {}
     for split in ["train", "val", "test"]:
@@ -156,7 +156,7 @@ def partition_hospital_data(
                     "meta": meta_list,
                     "n_samples": int(X_arr.shape[0]),
                 }
-    
+
     return final_result
 
 
@@ -177,11 +177,55 @@ def get_partition_summary(partitions: Dict[str, Dict[str, Dict[str, Any]]]) -> D
     return summary
 
 
-# Fixed, explicitly documented transformation (no global scaler on pooled private data)
-# For future use only - not applied by default
+# Fixed, explicitly documented transformation (no scaler fitted on pooled private data).
+#
+# The shared Step 3.3 feature "robust_zscore" divides by the median absolute
+# deviation. When MAD is ~0 this feature explodes (train/validation std ~6e6),
+# which destroys gradient-descent optimisation. We therefore apply a fixed
+# winsorisation (clip) to that single feature. The clip bound is a predefined
+# constant chosen from a small candidate set using TRAIN/VALIDATION only; it is
+# NOT fitted on pooled private data and it is NOT a privacy mechanism.
+ROBUST_ZSCORE_FEATURE_INDEX = FEATURE_NAMES.index("robust_zscore")
+FIXED_ROBUST_ZSCORE_CLIP = 5.0
+
 FIXED_TRANSFORMATION_CONSTANTS = {
-    "description": "Fixed transformation constants predefined; no fitting on pooled hospital data or test data",
-    "mean": None,  # Not used - would require fitting
-    "scale": None,
-    "applied": False,
+    "description": (
+        "Fixed winsorisation of the robust_zscore feature (index "
+        f"{ROBUST_ZSCORE_FEATURE_INDEX}). Not fitted on data; not a privacy mechanism."
+    ),
+    "method": "clip",
+    "feature": "robust_zscore",
+    "feature_index": ROBUST_ZSCORE_FEATURE_INDEX,
+    "lower": -FIXED_ROBUST_ZSCORE_CLIP,
+    "upper": FIXED_ROBUST_ZSCORE_CLIP,
+    "mean": None,   # no fitted mean
+    "scale": None,  # no fitted scale
+    "fitted": False,
+    "privacy_preserving": False,
+    "candidate_bounds": [3.0, 5.0, 10.0],
+    "default_bound": FIXED_ROBUST_ZSCORE_CLIP,
+    "applied": False,  # applied explicitly by orchestration scripts, not implicitly
 }
+
+
+def apply_fixed_feature_transform(X, clip: Optional[float] = None) -> np.ndarray:
+    """Apply the fixed robust_zscore winsorisation to a feature matrix.
+
+    ``clip=None`` disables the transform (returns a copy of the input).
+    No statistic is fitted, so no pooled hospital data is required.
+    """
+    X = np.asarray(X, dtype=float)
+    if X.ndim != 2:
+        raise ValueError("X must be 2-dimensional (n_samples, n_features)")
+    if X.shape[1] != len(FEATURE_NAMES):
+        raise ValueError(f"X must have {len(FEATURE_NAMES)} features")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("X contains non-finite values")
+    out = X.copy()
+    if clip is not None:
+        if not np.isfinite(clip) or clip <= 0:
+            raise ValueError("clip must be a positive finite number or None")
+        out[:, ROBUST_ZSCORE_FEATURE_INDEX] = np.clip(
+            out[:, ROBUST_ZSCORE_FEATURE_INDEX], -float(clip), float(clip)
+        )
+    return out

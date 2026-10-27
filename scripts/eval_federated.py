@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Final evaluation for Step 3.4 - Federated vs Centralized on held-out test set.
-Hyperparameters selected using train/val only. Test evaluated once.
+Historical first evaluation for Step 3.4 - Federated vs Centralized on the v1
+held-out test split (seeds 3001-3006).
+
+IMPORTANT (post-review correction): the hyperparameters below were FIXED
+DEFAULTS chosen by the developer, not the result of a documented search.
+They were not selected with a recorded train/validation procedure. The earlier
+claim of validation-based selection was inaccurate. A genuine train/validation
+selection now lives in scripts/diagnose_federated_trainval.py and the fresh-seed
+held-out evaluation in scripts/eval_federated_v2.py.
+
+The v1 report (reports/fl_simulation.json) is preserved unchanged as history
+and must not be re-tuned or overwritten.
 """
 
 import json
@@ -52,31 +62,33 @@ def evaluate_model(model, X, y, threshold=0.5):
 def main():
     random.seed(42)
     np.random.seed(42)
-    
+
     partitions = partition_hospital_data()
     configs = get_simulation_configs()
-    
-    # Hyperparameters selected on train/val only
+
+    # FIXED DEFAULTS chosen by the developer (NOT selected via a documented
+    # train/validation search). The historical v1 report must be read with this
+    # caveat; see scripts/diagnose_federated_trainval.py for the real selection.
     n_rounds = 10
     local_iterations = 20
     learning_rate = 0.01
-    threshold = 0.5  # default, could tune on val but keeping simple
+    threshold = 0.5  # fixed default, not tuned
     random_state = 42
-    
+
     # Initialize global model
     global_model = BinaryLogisticRegression(
         n_features=18, learning_rate=learning_rate, max_iter=local_iterations,
         class_weight=None, random_state=random_state
     )
     global_params = global_model.get_params()
-    
+
     # Create clients
-    clients = {hid: LocalFederatedClient(hid, partitions["train"][hid], 
+    clients = {hid: LocalFederatedClient(hid, partitions["train"][hid],
                                           learning_rate=learning_rate,
                                           local_iterations=local_iterations,
                                           random_state=random_state)
                for hid in HOSPITAL_IDS}
-    
+
     # Multi-round training
     convergence_history = []
     for round_num in range(n_rounds):
@@ -88,11 +100,11 @@ def main():
         global_params = FederatedAggregator.aggregate(updates)
         # Simple convergence metric
         convergence_history.append({"round": round_num})
-    
+
     # Create global federated model
     fl_model = BinaryLogisticRegression(n_features=18, random_state=random_state)
     fl_model.set_params(global_params)
-    
+
     # Centralized baseline - pool training data only
     X_train_central = np.vstack([partitions["train"][hid]["X"] for hid in HOSPITAL_IDS])
     y_train_central = np.concatenate([partitions["train"][hid]["y"] for hid in HOSPITAL_IDS])
@@ -100,7 +112,7 @@ def main():
                                              max_iter=100, class_weight=None,
                                              random_state=random_state)
     central_model.fit(X_train_central, y_train_central)
-    
+
     # Evaluate on HELD-OUT TEST once
     results = {
         "metadata": {
@@ -115,7 +127,7 @@ def main():
             "normalization": "none (no transformation applied)",
             "feature_count": 18,
             "window_size": 21,
-            "hyperparams_selected_on": "train/validation only",
+            "hyperparams_selected_on": "FIXED DEFAULTS (not a documented train/validation search)",
             "test_evaluated_once": True,
             "python_version": platform.python_version(),
             "numpy_version": np.__version__,
@@ -154,22 +166,22 @@ def main():
             "Does not claim clinical outbreak detection"
         ]
     }
-    
+
     # Global evaluation
     X_test_all = np.vstack([partitions["test"][hid]["X"] for hid in HOSPITAL_IDS])
     y_test_all = np.concatenate([partitions["test"][hid]["y"] for hid in HOSPITAL_IDS])
     results["federated"]["global"] = evaluate_model(fl_model, X_test_all, y_test_all, threshold)
     results["centralized"]["global"] = evaluate_model(central_model, X_test_all, y_test_all, threshold)
-    
+
     # Per-hospital evaluation
     for hid in HOSPITAL_IDS:
-        results["federated"]["per_hospital"][hid] = evaluate_model(fl_model, 
+        results["federated"]["per_hospital"][hid] = evaluate_model(fl_model,
                                                                    partitions["test"][hid]["X"],
                                                                    partitions["test"][hid]["y"], threshold)
         results["centralized"]["per_hospital"][hid] = evaluate_model(central_model,
                                                                      partitions["test"][hid]["X"],
                                                                      partitions["test"][hid]["y"], threshold)
-    
+
     # Reporting error analysis
     for hid in HOSPITAL_IDS:
         mask = np.array([m["scenario"] == "reporting_error" for m in partitions["test"][hid]["meta"]])
@@ -183,11 +195,11 @@ def main():
                                              y_err[spike_mask] if np.any(spike_mask) else y_err[:0], threshold),
                 "n_spikes": int(np.sum(spike_mask))
             }
-    
+
     out_path = REPORTS_DIR / "fl_simulation.json"
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-    
+
     print(json.dumps({
         "federated_global": results["federated"]["global"],
         "centralized_global": results["centralized"]["global"],

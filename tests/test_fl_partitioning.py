@@ -11,6 +11,8 @@ import numpy as np
 from ai_service.fl_utils import (
     partition_hospital_data,
     get_partition_summary,
+    apply_fixed_feature_transform,
+    ROBUST_ZSCORE_FEATURE_INDEX,
     HOSPITAL_IDS,
     FEATURE_NAMES,
     WINDOW_SIZE,
@@ -19,17 +21,17 @@ from scripts.train_ml_detector import get_simulation_configs, MLSyntheticGenerat
 
 
 class TestFLPartitioning(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
         cls.configs = get_simulation_configs()
         cls.partitions = partition_hospital_data(cls.configs)
-    
+
     def test_hospital_ids(self):
         self.assertEqual(HOSPITAL_IDS, ["HOSP_TUN", "HOSP_SOU", "HOSP_SFX"])
         self.assertEqual(len(FEATURE_NAMES), 18)
         self.assertEqual(WINDOW_SIZE, 21)
-    
+
     def test_simulation_isolation(self):
         # All seeds must be disjoint across splits
         train_seeds = set(s for s, _ in self.configs["train"])
@@ -38,7 +40,7 @@ class TestFLPartitioning(unittest.TestCase):
         self.assertEqual(len(train_seeds & val_seeds), 0)
         self.assertEqual(len(train_seeds & test_seeds), 0)
         self.assertEqual(len(val_seeds & test_seeds), 0)
-    
+
     def test_split_disjointness_across_partitions(self):
         all_sim_ids = []
         for split in ["train", "val", "test"]:
@@ -51,14 +53,14 @@ class TestFLPartitioning(unittest.TestCase):
             sim_to_splits.setdefault(sim_id, set()).add(split)
         for sim_id, splits in sim_to_splits.items():
             self.assertEqual(len(splits), 1)
-    
+
     def test_hospital_isolation(self):
         # Each partition contains only its hospital's data
         for split in ["train", "val", "test"]:
             for hid in HOSPITAL_IDS:
                 for meta in self.partitions[split][hid]["meta"]:
                     self.assertEqual(meta["hospital_id"], hid)
-    
+
     def test_feature_extraction_matches_step3_3(self):
         # Check feature dimensions
         for split in ["train", "val", "test"]:
@@ -67,7 +69,7 @@ class TestFLPartitioning(unittest.TestCase):
                 if X.shape[0] > 0:
                     self.assertEqual(X.shape[1], 18)
                     self.assertTrue(np.all(np.isfinite(X)))
-    
+
     def test_provenance_metadata(self):
         for split in ["train", "val", "test"]:
             for hid in HOSPITAL_IDS:
@@ -80,14 +82,14 @@ class TestFLPartitioning(unittest.TestCase):
                     self.assertIn("split", meta)
                     self.assertIn("is_reporting_error", meta)
                     self.assertEqual(meta["split"], split)
-    
+
     def test_reporting_error_labeled_negative(self):
         for split in ["train", "val", "test"]:
             for hid in HOSPITAL_IDS:
                 for i, meta in enumerate(self.partitions[split][hid]["meta"]):
                     if meta["scenario"] == "reporting_error":
                         self.assertEqual(self.partitions[split][hid]["y"][i], 0)
-    
+
     def test_determinism(self):
         p1 = partition_hospital_data(self.configs)
         p2 = partition_hospital_data(self.configs)
@@ -95,7 +97,7 @@ class TestFLPartitioning(unittest.TestCase):
             for hid in HOSPITAL_IDS:
                 np.testing.assert_array_equal(p1[split][hid]["X"], p2[split][hid]["X"])
                 np.testing.assert_array_equal(p1[split][hid]["y"], p2[split][hid]["y"])
-    
+
     def test_sample_alignment(self):
         for split in ["train", "val", "test"]:
             for hid in HOSPITAL_IDS:
@@ -103,7 +105,7 @@ class TestFLPartitioning(unittest.TestCase):
                 self.assertEqual(p["X"].shape[0], p["y"].shape[0])
                 self.assertEqual(p["X"].shape[0], len(p["meta"]))
                 self.assertEqual(p["n_samples"], p["X"].shape[0])
-    
+
     def test_warmup_21_observations(self):
         # First sample should be at day 21 (index 20)
         gen = MLSyntheticGenerator()
@@ -114,12 +116,12 @@ class TestFLPartitioning(unittest.TestCase):
                         # Just check dates are reasonable
                         self.assertRegex(meta["date"], r'^\d{4}-\d{2}-\d{2}$')
                         break
-    
+
     def test_invalid_partition_inputs(self):
         bad_configs = {"train": [], "val": [], "test": []}
         with self.assertRaises(ValueError):
             partition_hospital_data(bad_configs)
-    
+
     def test_no_cross_simulation_histories(self):
         # Histories reset per simulation - checked by construction
         # Each simulation processed separately
@@ -129,6 +131,49 @@ class TestFLPartitioning(unittest.TestCase):
                 # At least some sims
                 if self.partitions[split][hid]["n_samples"] > 0:
                     self.assertGreater(len(sim_ids), 0)
+
+    def test_train_val_test_seeds_disjoint(self):
+        seeds_by_split = {}
+        for split in ["train", "val", "test"]:
+            seeds = set()
+            for hid in HOSPITAL_IDS:
+                seeds |= {m["sim_seed"] for m in self.partitions[split][hid]["meta"]}
+            seeds_by_split[split] = seeds
+        self.assertEqual(seeds_by_split["train"] & seeds_by_split["val"], set())
+        self.assertEqual(seeds_by_split["train"] & seeds_by_split["test"], set())
+        self.assertEqual(seeds_by_split["val"] & seeds_by_split["test"], set())
+
+    def test_fixed_transform_clips_only_robust_zscore(self):
+        X = np.array([[1.0] * 18, [2.0] * 18])
+        X[0, ROBUST_ZSCORE_FEATURE_INDEX] = 1e9
+        X[1, ROBUST_ZSCORE_FEATURE_INDEX] = -1e9
+        out = apply_fixed_feature_transform(X, clip=5.0)
+        self.assertTrue(np.all(out[:, ROBUST_ZSCORE_FEATURE_INDEX] <= 5.0))
+        self.assertTrue(np.all(out[:, ROBUST_ZSCORE_FEATURE_INDEX] >= -5.0))
+        # Other features untouched
+        for i in range(18):
+            if i != ROBUST_ZSCORE_FEATURE_INDEX:
+                np.testing.assert_array_equal(out[:, i], X[:, i])
+        # Original not mutated
+        self.assertEqual(X[0, ROBUST_ZSCORE_FEATURE_INDEX], 1e9)
+
+    def test_fixed_transform_none_is_identity(self):
+        X = self.partitions["val"]["HOSP_TUN"]["X"]
+        np.testing.assert_array_equal(apply_fixed_feature_transform(X, clip=None), X)
+
+    def test_fixed_transform_is_deterministic(self):
+        X = self.partitions["val"]["HOSP_TUN"]["X"]
+        a = apply_fixed_feature_transform(X, clip=5.0)
+        b = apply_fixed_feature_transform(X, clip=5.0)
+        np.testing.assert_array_equal(a, b)
+
+    def test_fixed_transform_rejects_bad_input(self):
+        with self.assertRaises(ValueError):
+            apply_fixed_feature_transform(np.zeros((2, 17)), clip=5.0)
+        with self.assertRaises(ValueError):
+            apply_fixed_feature_transform(np.zeros(18), clip=5.0)
+        with self.assertRaises(ValueError):
+            apply_fixed_feature_transform(np.ones((2, 18)), clip=0.0)
 
 
 if __name__ == '__main__':

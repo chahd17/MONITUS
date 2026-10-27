@@ -478,3 +478,67 @@ Apprentissage modeste (faible rappel) - comportement attendu avec modèle linéa
 - Suite complète: 200/200 OK
 - CSV restaurés (uniquement fins de ligne)
 - Step 3.3 intact, API/dashboard inchangés
+
+
+## Étape 23 : Corrections post-review PR #2 (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°23
+
+### 2) Ce que nous avons fait
+Corrections demandées par le reviewer indépendant sur feature/federated-simulation (a6a7f00).
+
+### 3) Défauts corrigés
+- **Client**: renforcement de la cohérence hospital_id/metadata, rejet split non-train, validation stricte shapes (X (n,18), y 1D)
+- **Serveur**: schéma exact (hospital_id, coef, intercept, n_samples), rejet clés inconnues (dont patient_records)
+- **Modèle**: rejet labels colonne (n,1), validation shapes stricte
+- **Tests**: ajout tests régression pour les cas ci-dessus, checks gradient finis, reset paramètres entre rounds
+- **Nettoyage**: espaces finaux supprimés dans fichiers FL/tests/scripts
+
+### 4) Intégrité évaluation
+- Hyperparams actuels fixés (non sélectionnés exhaustivement) - remarque documentée
+- Test held-out non réévalué/tuné
+- Résultats historiques conservés (recall 3/56, F1~0.087) - non prêts pour clinique/production
+- Pas de garantie confidentialité (FedAvg seul, pas secure aggregation/dp)
+
+### 5) Vérification
+- Tests focalisés FL + suite complète: 200/200 OK
+- git diff --check propre
+- Step 3.3/API/dashboard inchangés
+
+
+## Étape 24 : Corrections post-review PR #2 + sélection train/val + évaluation seeds vierges (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°24
+
+### 2) Corrections défauts confirmés
+- Client: cohérence hospital_id/métadonnées, rejet split non-train, formes strictes (X 2D, y 1D), partition vide refusée (comportement cohérent avec serveur), copies uniquement.
+- Serveur: schéma exact (hospital_id, coef, intercept, n_samples), rejet clés inconnues (dont patient_records).
+- Modèle: rejet labels colonne (n,1), validation formes stricte.
+- Tests régression ajoutés et **collectés** (correction: les ajouts précédents étaient hors classe; maintenant dedans). Checks gradient fini, reset paramètres entre rounds, isolation/comptage/agrégation/déterminisme.
+- Espaces finaux nettoyés dans fichiers FL/tests/scripts.
+
+### 3) Intégrité évaluation (train/val uniquement, pas de test)
+- Investigation magnitudes train: feature `robust_zscore` (index 9) std ~6e6 (MAD≈0) → effondrement sans transformation.
+- Grid recherche sur train/validation uniquement (clip {None,10,5,3}, lr {0.01,0.1,0.5}, local_iter {20,100}, rounds {5,10,20}), sélection par F1 validation à seuil choisi sur validation. Config figée dans `reports/fl_frozen_config.json`, `selected_on_test: false`.
+- Transform fixe sans ajustement (winsorisation) appliqué explicitement orchestration; non utilisé pour scaler agrégé.
+
+### 4) Nouvelle évaluation held-out à seeds vierges
+- Seeds vierges choisis AVANT évaluation par règle fixe: train 4xxx/val 5xxx/test 6xxx, disjoints 1xxx/2xxx/3xxx; disjointes des seeds test v1 (3001-3006). Disparition post-review documentée.
+- `reports/fl_simulation_v1` conservé inchangé (historique). Nouveau `reports/fl_simulation_v2.json`.
+- Fédéré v2 (test fresh): TP=52, TN=1204, FP=0, FN=4, P=1.000, R=0.929, F1=0.963, n=1260
+- Centralisé v2 (test fresh): TP=53, TN=1198, FP=6, FN=3, P=0.898, R=0.946, F1=0.922, n=1260
+- Analyse reporting_error/pics isolés et faux positifs scénario normal enregistrés. Convergence/gradients/prob distributions/per-class métriques documentés.
+
+### 5) Limites et avertissements
+- Simulation uniquement, pas de validité clinique, pas de garantie confidentialité (FedAvg ordinaire, pas secure aggregation, pas DP).
+- Faible nombre de simulations, fenêtres chevauchantes/corrélées, modèle linéaire simple, Sfax tout-négatif, pas de pondération classes.
+- Amélioration v2 due majoritairement à correction échelle feature; résultats ne généralisent pas.
+
+### 6) Vérification
+- Tests: 227/227 OK (incluant tests schéma rapport/isolation/counts/déterminisme/guard)
+- git diff --check propre; CSV uniquement fins de ligne restaurés
+- Step 3.3/API/dashboard inchangés

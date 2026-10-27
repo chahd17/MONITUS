@@ -24,7 +24,7 @@ from ai_service.fl_model import BinaryLogisticRegression
 
 class LocalFederatedClient:
     """Federated client bound to a single hospital partition."""
-    
+
     def __init__(
         self,
         hospital_id: str,
@@ -41,21 +41,31 @@ class LocalFederatedClient:
         required_keys = {"X", "y", "meta"}
         if not all(k in partition for k in required_keys):
             raise ValueError("partition must contain X, y, meta")
-        
+
         self.hospital_id = hospital_id
         self.partition = partition
         self.n_features = int(n_features)
         self.learning_rate = float(learning_rate)
         self.local_iterations = int(local_iterations)
         self.random_state = random_state
-        
+
         # Validate partition
         X = np.asarray(partition["X"])
         y = np.asarray(partition["y"])
-        if X.shape[1] != self.n_features:
-            raise ValueError(f"Partition must have {self.n_features} features")
+        meta = partition.get("meta", [])
+
+        # Enforce shape: X must be (n, n_features), y must be 1D (n,)
+        if X.ndim != 2:
+            raise ValueError("X must be 2-dimensional (n_samples, n_features)")
+        if y.ndim != 1:
+            raise ValueError("y must be 1-dimensional (n_samples,)")
         if X.shape[0] != y.shape[0]:
             raise ValueError("X and y must have same number of samples")
+        if X.shape[0] == 0:
+            # Consistent with the server, which rejects n_samples <= 0 updates.
+            raise ValueError("Client partition must contain at least one training sample")
+        if X.shape[1] != self.n_features:
+            raise ValueError(f"Partition must have {self.n_features} features")
         if not np.all(np.isfinite(X)):
             raise ValueError("Partition contains non-finite features")
         if not np.all(np.isfinite(y)):
@@ -63,11 +73,21 @@ class LocalFederatedClient:
         unique_labels = np.unique(y)
         if not np.all(np.isin(unique_labels, [0, 1])):
             raise ValueError("Labels must be 0 or 1")
-        
+
+        # Enforce hospital_id consistency with metadata
+        if meta:
+            for m in meta:
+                if not isinstance(m, dict):
+                    raise ValueError("Metadata entries must be dicts")
+                if m.get("hospital_id") != self.hospital_id:
+                    raise ValueError("Metadata hospital_id mismatch")
+                if m.get("split") != "train":
+                    raise ValueError("Client only accepts train partition records")
+
         self.X_local = X.astype(float).copy()  # own copy
-        self.y_local = y.astype(float).copy()
+        self.y_local = y.astype(float).ravel().copy()
         self.n_samples = int(X.shape[0])
-        
+
         # Model owned by client (separate from others)
         self.model = BinaryLogisticRegression(
             n_features=self.n_features,
@@ -76,7 +96,7 @@ class LocalFederatedClient:
             class_weight=None,  # Do not use balanced - Sfax has 0 positives
             random_state=self.random_state,
         )
-    
+
     def train_round(self, global_params: Dict[str, np.ndarray]) -> Dict[str, Any]:
         """
         Train one local round starting from global parameters.
@@ -87,34 +107,33 @@ class LocalFederatedClient:
             raise ValueError("global_params must be a dict")
         if "coef" not in global_params or "intercept" not in global_params:
             raise ValueError("global_params must contain coef and intercept")
-        
+
         # Load global parameters
         self.model.set_params(global_params)
-        
+
         # Train only on own data
         if self.n_samples > 0:
             self.model.fit(self.X_local, self.y_local)
-        # If n_samples == 0, model remains at global params (edge case)
         # If all negative (e.g., Sfax), training is still finite with class_weight=None
-        
+
         # Get parameters as copies
         params = self.model.get_params()
         coef = np.asarray(params["coef"])
         intercept = np.asarray(params["intercept"])
-        
+
         if not np.all(np.isfinite(coef)) or not np.all(np.isfinite(intercept)):
             raise ValueError("Non-finite parameters produced")
         if coef.shape != (self.n_features,):
             raise ValueError("Invalid coefficient shape")
         if intercept.shape != ():
             raise ValueError("Invalid intercept shape")
-        
+
         return {
             "hospital_id": self.hospital_id,
             "coef": coef.copy(),
             "intercept": intercept.copy(),
             "n_samples": int(self.n_samples),
         }
-    
+
     def get_num_samples(self) -> int:
         return self.n_samples
