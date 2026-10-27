@@ -173,3 +173,159 @@ un contrôle Python des espaces finaux sur les fichiers texte de ce cycle,
 y compris le nouveau test et cette note, ne trouve aucun problème.
 Les empreintes SHA-256 de `AGENTS.md` et des trois fichiers protégés `LEARNED`
 sont identiques avant et après le travail. Leur état Git initial est conservé.
+
+## Adaptateur régional ML optionnel — 27 octobre 2026
+
+Cette section décrit un nouveau cycle, après le commit `102679c`. Les sections
+précédentes restent l'historique du travail du 25 octobre. L'exception de journal
+est à nouveau autorisée pour cette tâche : aucune modification de `LEARNED.md`,
+de ses deux sauvegardes ni de `AGENTS.md`.
+
+### Choix d'architecture après inspection
+
+`MLDetector.predict_proba()` produit une probabilité sur un historique ; il ne
+fournit pas les dates ou les identifiants attendus par le détecteur régional.
+`RegionalDetector.corroborate()` peut réutiliser le champ booléen `anomaly_flag`
+sans avoir besoin d'un score MAD pour compter les hôpitaux. `AlertVerifier.verify()`
+peut ensuite appliquer sa règle de persistance sur ces rapports.
+
+Le nouveau `ai_service/ml_regional_adapter.py` ajoute seulement
+`MLRegionalAssessmentAdapter.assess(observations)`. Il n'est appelé ni par l'API,
+ni par le tableau de bord, ni par le chemin statistique existant. Les modules
+`MLDetector`, `RegionalDetector` et `AlertVerifier` ne sont pas modifiés.
+
+- Le modèle sauvegardé est chargé par défaut. Son seuil de validation, environ
+  0,65, est lu dans ses métadonnées. Il n'y a pas de réentraînement, de modification
+  des 18 variables, de nouveau seuil ou de réglage sur les cas de test.
+- Le quorum reste fixé à deux hôpitaux distincts le même jour. La vérification
+  réutilise deux jours régionaux dans une fenêtre de trois jours calendaires.
+  L'adaptateur ne propose pas de quorum configurable, car le vérificateur existant
+  utilise lui-même une limite de deux sites pour sa classification.
+- Chaque ligne doit contenir `sim_id`, `hospital_id`, `date` au format
+  `YYYY-MM-DD`, et `respiratory_cases`, un entier non négatif. `city` est facultatif.
+  Les identifiants doivent être stables et représenter des hôpitaux fictifs.
+  Les champs de vérité terrain éventuels ne servent pas à prédire.
+- Les lignes sont triées par date pour chaque hôpital et chaque simulation. Aucun
+  historique ou jour régional n'est partagé entre simulations, ni entre appels.
+  Une ligne sans identifiant de simulation est refusée au lieu d'être mélangée
+  silencieusement avec une autre simulation.
+- Une journée répétée avec le même nombre de cas et la même ville est ignorée
+  après sa première occurrence, avec un avertissement dans `input_warnings`.
+  Elle n'avance pas la fenêtre et ne compte pas comme un second hôpital. Si les
+  valeurs de cette journée se contredisent, l'appel échoue avec `ValueError`.
+- Pour ne pas appliquer un modèle entraîné sur des journées régulières à un
+  historique irrégulier, un trou calendaire remet à zéro la fenêtre de cet hôpital
+  et crée un avertissement. Il faut de nouveau 21 observations quotidiennes
+  consécutives, dont aujourd'hui, pour obtenir une prédiction. Aucun zéro n'est
+  ajouté pour combler le trou. Ce choix prudent peut retarder une détection.
+
+### Sorties locales et régionales séparées
+
+Le résultat est un dictionnaire par `sim_id`. Chaque simulation contient :
+
+- `local_signals` : les observations réellement évaluées, positives ou négatives,
+  regroupées par hôpital. Chaque signal garde `source="ml"`,
+  `predicted_probability`, `threshold`, sa date et son hôpital. `anomaly_flag`
+  signifie seulement une décision locale du modèle, pas une épidémie vérifiée.
+- `regional_reports` : les rapports produits par le détecteur régional, y compris
+  les anomalies isolées. `regional_signals` ne contient que les rapports où le
+  quorum du jour est atteint.
+- `assessments` : les statuts du vérificateur existant. Un hôpital seul reste
+  `ISOLATED_ANOMALY`, même s'il est positif plusieurs jours. Deux sites un seul
+  jour donnent `REGIONAL_SIGNAL_UNCONFIRMED`. Une persistance suffisante donne
+  `REGIONAL_SIGNAL_REQUIRES_REVIEW`, jamais une confirmation clinique.
+- `input_warnings` : les doublons identiques ignorés et les remises à zéro après
+  un trou de dates. Les jours sans assez d'historique n'ont pas de prédiction.
+  L'absence de rapport ne doit donc pas être présentée comme une preuve de normalité.
+
+Le formateur régional existant ajoute des valeurs statistiques par défaut lorsque
+ces champs sont absents. L'adaptateur remplace ces détails par les vrais signaux
+ML avant la vérification et retire `individual_anomaly_scores`. Il ne publie pas
+de faux `mad`, `baseline_median` ou `anomaly_score`, et ne convertit jamais une
+probabilité en score statistique. L'avertissement statistique « score supérieur
+à 20 » n'est donc pas appliqué au ML. Les avertissements existants du vérificateur
+ne sont pas des vetos automatiques ; cela n'est pas changé ici.
+
+Les sorties locales, régionales et de vérification indiquent
+`confirmed_outbreak=False`. Le niveau régional exige une revue humaine, pas une
+conclusion médicale.
+
+Exemple d'appel sur des comptes entièrement inventés :
+
+```python
+from datetime import date, timedelta
+from ai_service.ml_regional_adapter import MLRegionalAssessmentAdapter
+
+rows = [
+    {"sim_id": "demo", "hospital_id": "HOSP_FICTIF_A",
+     "date": (date(2024, 1, 1) + timedelta(days=i)).isoformat(),
+     "respiratory_cases": 100 if i == 20 else 10}
+    for i in range(21)
+]
+result = MLRegionalAssessmentAdapter().assess(rows)["demo"]
+# Examiner séparément local_signals, regional_signals et assessments.
+```
+
+### Vérifications et résultats réellement observés
+
+Nouveaux fichiers : `ai_service/ml_regional_adapter.py` et
+`tests/test_ml_regional_adapter.py`. Le seul fichier existant modifié pour ce
+cycle est ce journal. Aucun paquet n'a été installé.
+
+- `venv\Scripts\python.exe -B -m unittest tests.test_ml_regional_adapter -v` :
+  **23 tests réussis**.
+- `venv\Scripts\python.exe -B -m unittest discover -s tests -v` :
+  **138 tests réussis**, soit les 115 précédents et les 23 nouveaux.
+- Les cas d'architecture utilisent des probabilités injectées et des observations
+  fabriquées à la main, pas les trois pics de test pour choisir une règle. Ils
+  couvrent un pic isolé, les dates différentes, le quorum du même jour, les deux
+  jours sur trois et la sortie de fenêtre, les doublons, les trous de dates,
+  l'indépendance des données futures, l'isolation des simulations et des appels,
+  les champs de provenance et les entrées invalides.
+- Un test utilise aussi le vrai modèle sauvegardé sur une série fabriquée à la
+  main : les probabilités et décisions sont identiques à celles de `MLDetector`
+  appelé directement, et les empreintes des quatre fichiers modèle/rapport sont
+  inchangées après l'appel. Les changements de seuil dans les autres tests portent
+  seulement sur le faux détecteur de test, jamais sur les fichiers sauvegardés.
+
+Après ces tests, une inférence descriptive avec les règles déjà fixées a été
+exécutée en mémoire sur les six anciennes simulations de test. Aucun fichier de
+modèle ou rapport n'a été régénéré et aucun ajustement n'a suivi ces résultats.
+
+| Simulation | Scénario | Décisions locales positives | Jours de signal régional | Jours nécessitant une revue |
+|---|---|---:|---:|---:|
+| sim_3001 | outbreak | 28 | 14 | 13 |
+| sim_3002 | outbreak | 27 | 13 | 12 |
+| sim_3003 | normal | 0 | 0 | 0 |
+| sim_3004 | reporting_error | 1 | 0 | 0 |
+| sim_3005 | reporting_error | 2 | 0 | 0 |
+| sim_3006 | reporting_error | 1 | 0 | 0 |
+
+**Les 3 pics de signalement sur 3 restent des faux positifs du modèle ML au
+niveau hospitalier.** Il y a toujours quatre faux positifs locaux dans ces
+simulations d'erreur, dont un hors du jour du pic. Avec l'adaptateur, ces décisions
+restent des anomalies isolées : zéro jour de signal régional et zéro jour de
+revue régionale dans ces trois simulations. Cela vérifie la séparation des
+niveaux d'alerte ; cela ne répare pas le classificateur et ne prouve pas qu'il
+reconnaît les erreurs de signalement.
+
+Ces simulations ont déjà été examinées dans les cycles précédents. Les chiffres
+ci-dessus ne sont pas une nouvelle validation indépendante. Une future évaluation
+doit réserver à l'avance d'autres simulations et garder le modèle, le seuil et
+les règles fixes. Des erreurs simultanées ou répétées dans plusieurs hôpitaux
+pourraient satisfaire quorum et persistance ; aucune promesse de suppression de
+tous les faux signaux régionaux n'est faite.
+
+Aucune erreur rencontrée pendant l'implémentation, les tests ou cette inférence.
+La suite complète émet toujours l'avertissement Starlette sur `httpx`, sans échec.
+La reproductibilité des données CSV est vérifiée par la suite existante ; ce
+test réécrit les CSV synthétiques avec leur contenu reproductible habituel, sans
+entraîner le modèle ML. Aucun changement de Git n'est autorisé pour ce cycle
+avant la revue de l'utilisateur : aucun ajout à l'index, commit, push ou merge.
+
+Contrôle final : les SHA-256 des quatre fichiers protégés, des trois fichiers
+de modèle, du rapport ML et du script d'entraînement sont identiques à ceux
+relevés avant cette tâche. Aucun changement des chemins statistique, API ou
+tableau de bord n'apparaît dans Git. L'index est vide. Le contrôle des espaces
+finaux réussit sur les deux nouveaux fichiers et cette note ; `git diff --check`
+limité à cette note réussit également, avec seulement l'avis habituel LF/CRLF.
