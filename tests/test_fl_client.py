@@ -170,5 +170,62 @@ class TestFLClient(unittest.TestCase):
             LocalFederatedClient("HOSP_TUN", bad_part)
 
 
+
+
+    def test_reject_none_metadata(self):
+        partitions = partition_hospital_data()
+        bad_part = {
+            "X": partitions["train"]["HOSP_TUN"]["X"].copy(),
+            "y": partitions["train"]["HOSP_TUN"]["y"].copy(),
+            "meta": None,
+        }
+        with self.assertRaises(ValueError):
+            LocalFederatedClient("HOSP_TUN", bad_part)
+
+    def test_reject_empty_metadata(self):
+        partitions = partition_hospital_data()
+        bad_part = {
+            "X": partitions["train"]["HOSP_TUN"]["X"].copy(),
+            "y": partitions["train"]["HOSP_TUN"]["y"].copy(),
+            "meta": [],
+        }
+        with self.assertRaises(ValueError):
+            LocalFederatedClient("HOSP_TUN", bad_part)
+
+    def test_reject_too_short_metadata(self):
+        partitions = partition_hospital_data()
+        bad_part = {
+            "X": partitions["train"]["HOSP_TUN"]["X"].copy(),
+            "y": partitions["train"]["HOSP_TUN"]["y"].copy(),
+            "meta": [{"hospital_id": "HOSP_TUN", "split": "train"}],
+        }
+        with self.assertRaises(ValueError):
+            LocalFederatedClient("HOSP_TUN", bad_part)
+
+    def test_reject_too_long_metadata(self):
+        partitions = partition_hospital_data()
+        meta = [{"hospital_id": "HOSP_TUN", "split": "train"}] * len(partitions["train"]["HOSP_TUN"]["y"])
+        meta.append({"hospital_id": "HOSP_TUN", "split": "train"})
+        bad_part = {
+            "X": partitions["train"]["HOSP_TUN"]["X"].copy(),
+            "y": partitions["train"]["HOSP_TUN"]["y"].copy(),
+            "meta": meta,
+        }
+        with self.assertRaises(ValueError):
+            LocalFederatedClient("HOSP_TUN", bad_part)
+
+    def test_reject_invalid_metadata_entry(self):
+        partitions = partition_hospital_data()
+        meta = [{"hospital_id": "HOSP_TUN", "split": "train"}] * len(partitions["train"]["HOSP_TUN"]["y"])
+        meta[0] = "bad"
+        bad_part = {
+            "X": partitions["train"]["HOSP_TUN"]["X"].copy(),
+            "y": partitions["train"]["HOSP_TUN"]["y"].copy(),
+            "meta": meta,
+        }
+        with self.assertRaises(ValueError):
+            LocalFederatedClient("HOSP_TUN", bad_part)
+
+
 if __name__ == '__main__':
     unittest.main()

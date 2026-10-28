@@ -52,7 +52,7 @@ class LocalFederatedClient:
         # Validate partition
         X = np.asarray(partition["X"])
         y = np.asarray(partition["y"])
-        meta = partition.get("meta", [])
+        meta = partition.get("meta")
 
         # Enforce shape: X must be (n, n_features), y must be 1D (n,)
         if X.ndim != 2:
@@ -75,14 +75,19 @@ class LocalFederatedClient:
             raise ValueError("Labels must be 0 or 1")
 
         # Enforce hospital_id consistency with metadata
-        if meta:
-            for m in meta:
-                if not isinstance(m, dict):
-                    raise ValueError("Metadata entries must be dicts")
-                if m.get("hospital_id") != self.hospital_id:
-                    raise ValueError("Metadata hospital_id mismatch")
-                if m.get("split") != "train":
-                    raise ValueError("Client only accepts train partition records")
+        if meta is None:
+            raise ValueError("Metadata must be provided")
+        if not isinstance(meta, (list, tuple)):
+            raise ValueError("Metadata must be a list")
+        if len(meta) != int(X.shape[0]):
+            raise ValueError("Metadata must have exactly len(X) entries")
+        for m in meta:
+            if not isinstance(m, dict):
+                raise ValueError("Metadata entries must be dicts")
+            if "hospital_id" not in m or m.get("hospital_id") != self.hospital_id:
+                raise ValueError("Metadata hospital_id mismatch")
+            if "split" not in m or m.get("split") != "train":
+                raise ValueError("Client only accepts train partition records")
 
         self.X_local = X.astype(float).copy()  # own copy
         self.y_local = y.astype(float).ravel().copy()

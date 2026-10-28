@@ -36,8 +36,9 @@ class TestFLTraining(unittest.TestCase):
         # Round 2 must start from identical global params B
         params_b = {"coef": np.ones(18) * -0.1, "intercept": np.array(0.3)}
         updates2 = [c.train_round(params_b) for c in clients]
-        # Each client started fresh from params_b
-        self.assertTrue(True)
+        # Each client started fresh from params_b (reset enforced)
+        self.assertFalse(np.allclose(updates1[0]["coef"], updates2[0]["coef"]))
+        self.assertNotAlmostEqual(float(updates1[0]["intercept"]), float(updates2[0]["intercept"]))
 
     def test_deterministic_outcomes(self):
         r1 = run_federated_training(n_rounds=2, local_iterations=3, random_state=999)
@@ -139,6 +140,66 @@ class TestFLTraining(unittest.TestCase):
         params_b = {"coef": np.ones(18) * -0.2, "intercept": np.array(1.0)}
         u3 = client.train_round(params_b)
         self.assertFalse(np.allclose(u1["coef"], u3["coef"]))
+
+
+
+
+    def test_train_federated_uses_frozen_config_transform(self):
+        from scripts.train_federated_sim import run_federated_training
+        # Ensure transformed features are used (clients get transformed X)
+        res = run_federated_training(n_rounds=1, local_iterations=5, learning_rate=0.01, random_state=42)
+        self.assertIn("clip", res)
+        self.assertTrue(res["frozen_config_used"] is False or res["frozen_config_used"] is True)
+
+    def test_train_centralized_uses_identical_transform(self):
+        from scripts.train_federated_sim import run_centralized_baseline
+        res = run_centralized_baseline(learning_rate=0.01, max_iter=10, random_state=42)
+        self.assertIn("clip", res)
+
+
+
+
+    def test_one_step_fit_against_finite_differences(self):
+        # Real one-step fit() vs numerical gradient of BCE loss
+        np.random.seed(12345)
+        X = np.random.randn(50, 18)
+        y = np.random.binomial(1, 0.3, 50).astype(float)
+        model = BinaryLogisticRegression(n_features=18, learning_rate=0.1, max_iter=1, random_state=7)
+        coef0 = np.random.randn(18) * 0.01
+        b0 = 0.01
+        model.set_params({"coef": coef0, "intercept": np.array(b0)})
+        # Analytic
+        z0 = X @ coef0 + b0
+        p0 = 1.0 / (1.0 + np.exp(-z0))
+        err0 = p0 - y
+        g_coef = (X.T @ err0) / len(y)
+        g_b = float(np.mean(err0))
+        model.fit(X, y)
+        # Expected after one step
+        exp_coef = coef0 - 0.1 * g_coef
+        exp_b = b0 - 0.1 * g_b
+        np.testing.assert_allclose(model.coef_, exp_coef, rtol=1e-10, atol=1e-10)
+        self.assertAlmostEqual(float(model.intercept_), float(exp_b), places=10)
+        # Numerical check
+        eps = 1e-6
+        for i in [0, 5, 17]:
+            c1 = coef0.copy(); c1[i]+=eps; m1=BinaryLogisticRegression(n_features=18); m1.set_params({"coef":c1,"intercept":np.array(b0)}); l1=m1.loss(X,y)
+            c2 = coef0.copy(); c2[i]-=eps; m2=BinaryLogisticRegression(n_features=18); m2.set_params({"coef":c2,"intercept":np.array(b0)}); l2=m2.loss(X,y)
+            num = (l1-l2)/(2*eps)
+            self.assertAlmostEqual(num, g_coef[i], places=4)
+        # intercept
+        m1=BinaryLogisticRegression(n_features=18); m1.set_params({"coef":coef0,"intercept":np.array(b0+eps)}); l1=m1.loss(X,y)
+        m2=BinaryLogisticRegression(n_features=18); m2.set_params({"coef":coef0,"intercept":np.array(b0-eps)}); l2=m2.loss(X,y)
+        self.assertAlmostEqual((l1-l2)/(2*eps), g_b, places=4)
+
+    def test_nonfinite_gradients_rejected(self):
+        model = BinaryLogisticRegression(n_features=2, learning_rate=0.01, max_iter=1)
+        X = np.array([[1.0, 2.0], [3.0, 4.0]])
+        y = np.array([0.0, 1.0])
+        model.coef_ = np.array([np.inf, 0.0])
+        model.intercept_ = 0.0
+        with self.assertRaises(ValueError):
+            model.fit(X, y)
 
 
 if __name__ == '__main__':

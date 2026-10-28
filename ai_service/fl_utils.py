@@ -50,6 +50,7 @@ def partition_hospital_data(
     sim_configs_by_split: Optional[Dict[str, List[Tuple[int, str]]]] = None,
     generator: Optional[MLSyntheticGenerator] = None,
     window_size: int = WINDOW_SIZE,
+    splits: Optional[List[str]] = None,
 ) -> Dict[str, Dict[str, Dict[str, Any]]]:
     """
     Construct local hospital partitions per split.
@@ -77,8 +78,19 @@ def partition_hospital_data(
         # Allow override but warn via behavior
         pass
 
+    if splits is None:
+        splits = ["train", "val", "test"]
+    else:
+        splits = list(splits)
+        allowed = {"train", "val", "test"}
+        for s in splits:
+            if s not in allowed:
+                raise ValueError(f"Invalid split: {s}")
+        if "test" in splits:
+            raise ValueError("test split not allowed")
+
     result = {}
-    for split in ["train", "val", "test"]:
+    for split in splits:
         result[split] = {}
         for hid in HOSPITAL_IDS:
             result[split][hid] = {
@@ -90,7 +102,7 @@ def partition_hospital_data(
     # Track seen (sim_seed, split) for auditing
     all_seen_seeds = set()
 
-    for split in ["train", "val", "test"]:
+    for split in splits:
         for sim_seed, scen_type in sim_configs_by_split[split]:
             if sim_seed in all_seen_seeds:
                 raise ValueError(f"Simulation seed reused: {sim_seed}")
@@ -131,7 +143,7 @@ def partition_hospital_data(
 
     # Convert to arrays
     final_result = {}
-    for split in ["train", "val", "test"]:
+    for split in splits:
         final_result[split] = {}
         for hid in HOSPITAL_IDS:
             X_list = result[split][hid]["X"]

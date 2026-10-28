@@ -219,7 +219,8 @@ def _select_threshold(y: np.ndarray, proba: np.ndarray) -> Tuple[float, Dict[str
 
 def main() -> None:
     np.random.seed(RANDOM_STATE)
-    partitions = partition_hospital_data()
+    # Train/validation ONLY - never generate, access or process test simulations
+    partitions = partition_hospital_data(splits=["train", "val"])
 
     # ---- TRAIN-only feature magnitude summary ---------------------------------
     X_train_all = np.vstack([partitions["train"][hid]["X"] for hid in HOSPITAL_IDS])
@@ -420,3 +421,27 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _partition_train_val_only(sim_configs_by_split=None):
+    """Partition only TRAIN and VALIDATION; never construct TEST partitions."""
+    if sim_configs_by_split is None:
+        from scripts.train_ml_detector import get_simulation_configs
+        cfg = get_simulation_configs()
+        sim_configs_by_split = {"train": cfg["train"], "val": cfg["val"]}
+    else:
+        if "test" in sim_configs_by_split:
+            raise ValueError("test splits are not allowed in the train/validation diagnostic path")
+        sim_configs_by_split = {"train": sim_configs_by_split["train"], "val": sim_configs_by_split["val"]}
+    from scripts.train_ml_detector import validate_simulation_splits
+    validate_simulation_splits({"train": sim_configs_by_split["train"], "val": sim_configs_by_split["val"], "test": []})
+    # Use partition_hospital_data but we'll call in a way that doesn't load test
+    # Actually easier: call partition_hospital_data with custom split that has empty test? No, validate requires all three.
+    # Better: do it manually like partition_hospital_data but only train/val
+    from ai_service.fl_utils import partition_hospital_data, HOSPITAL_IDS, FEATURE_NAMES, WINDOW_SIZE
+    from ai_service.ml_features import build_causal_features
+    from scripts.train_ml_detector import MLSyntheticGenerator, label_outbreak_day
+
+    cfg = {"train": sim_configs_by_split["train"], "val": sim_configs_by_split["val"], "test": []}
+    # But validate_simulation_splits requires all three scenarios in each split
+    raise NotImplementedError

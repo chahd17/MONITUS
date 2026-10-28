@@ -142,18 +142,27 @@ class BinaryLogisticRegression:
             # Forward pass
             z = X @ self.coef_ + self.intercept_
             y_pred = self._sigmoid(z)
+            if not np.all(np.isfinite(y_pred)):
+                raise ValueError("Non-finite probabilities produced")
 
             # Compute gradients
             error = y_pred - y
+            if not np.all(np.isfinite(error)):
+                raise ValueError("Non-finite gradients produced")
             # Apply sample weights
             weighted_error = error * sample_weight
             grad_coef = (X.T @ weighted_error) / n_samples
             grad_intercept = np.mean(weighted_error)
+            if not np.all(np.isfinite(grad_coef)) or not np.isfinite(grad_intercept):
+                raise ValueError("Non-finite gradients produced")
 
             # Update parameters
-            self.coef_ -= self.learning_rate * grad_coef
-            self.intercept_ -= self.learning_rate * grad_intercept
+            self.coef_ = self.coef_ - self.learning_rate * grad_coef
+            self.intercept_ = float(self.intercept_ - self.learning_rate * grad_intercept)
+            if not np.all(np.isfinite(self.coef_)) or not np.isfinite(self.intercept_):
+                raise ValueError("Non-finite parameter update produced")
 
+        self.is_finite_ = True  # track finite state
         self.is_fitted_ = True
         return self
 

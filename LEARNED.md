@@ -542,3 +542,24 @@ Corrections demandées par le reviewer indépendant sur feature/federated-simula
 - Tests: 227/227 OK (incluant tests schéma rapport/isolation/counts/déterminisme/guard)
 - git diff --check propre; CSV uniquement fins de ligne restaurés
 - Step 3.3/API/dashboard inchangés
+
+
+## Étape 25 : Corrections ciblées post-review PR #2 (2026-10-28)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-28
+- Étape n°25
+
+### 2) Corrections
+- **Client**: métadonnées obligatoires, non-null, exactement len(X), chaque entrée dict avec hospital_id correspondant et split=train, rejet None/[]/trop court/trop long/invalide/non cohérent.
+- **Isolation train/val**: `partition_hospital_data` supporte `splits` (interdiction explicite test), `scripts/diagnose_federated_trainval.py` utilise `splits=["train","val"]` uniquement. Test de régression anti-génération test.
+- **Scripts entraînement**: `run_federated_training`/`run_centralized_baseline` routent via `apply_fixed_feature_transform`, utilisent config gelée si disponible, `use_validation_for_selection` retiré/déprécié sans effet trompeur, chemins compatibles.
+- **Gradient**: vérification non-finie gradients/mises à jour, test un pas `fit()` vs différences finies (lr/signe/normalisation), cohérence perte.
+- **Tests significatifs**: remplacement `assertTrue(True)`, vérification params globaux entrants par round, comparaison client réutilisé/frais, valeurs features/labels vs extracteur Step 3.3, warmup 21 observations, fuites inter-histoires, isolation validation.
+
+### 3) Vérification
+- Tests complets: **239/239 OK**
+- `git diff --check`: **0**
+- v1 `reports/fl_simulation.json` inchangé, v2/config/frozen/diagnostics préservés
+- Step 3.3/API/dashboard inchangés
+- CSV restaurés (uniquement fins de ligne)

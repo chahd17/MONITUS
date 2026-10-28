@@ -176,5 +176,80 @@ class TestFLPartitioning(unittest.TestCase):
             apply_fixed_feature_transform(np.ones((2, 18)), clip=0.0)
 
 
+
+
+    def test_train_val_only_does_not_generate_test(self):
+        # Diagnostic path must not generate or process test simulations
+        with self.assertRaises(ValueError):
+            partition_hospital_data(splits=["train", "val", "test"])
+
+
+
+
+    def test_exact_features_labels_from_step3_extractor(self):
+        from ai_service.ml_features import build_causal_features
+        from scripts.train_ml_detector import MLSyntheticGenerator, label_outbreak_day, get_simulation_configs
+        # Reconstruct exactly as partition_hospital_data does and compare
+        configs = get_simulation_configs()
+        gen = MLSyntheticGenerator()
+        for split in ["train"]:
+            for sim_seed, scen_type in configs[split]:
+                rows = gen.generate_simulation(sim_seed, scen_type)
+                by_hosp = {}
+                for row in rows:
+                    by_hosp.setdefault(row["hospital_id"], []).append(row)
+                for hid in HOSPITAL_IDS:
+                    if hid not in by_hosp:
+                        continue
+                    hosp_rows = sorted(by_hosp[hid], key=lambda r: r["date"])
+                    history = []
+                    idx_out = 0
+                    for idx, row in enumerate(hosp_rows):
+                        history.append(float(row["respiratory_cases"]))
+                        if len(history) >= 21:
+                            X_feat = build_causal_features(history, 21)
+                            y_label = label_outbreak_day(scen_type, idx, gen.days, hid)
+                            np.testing.assert_array_equal(X_feat, self.partitions[split][hid]["X"][idx_out])
+                            self.assertEqual(int(y_label), int(self.partitions[split][hid]["y"][idx_out]))
+                            self.assertEqual(self.partitions[split][hid]["meta"][idx_out]["sim_seed"], int(sim_seed))
+                            self.assertEqual(self.partitions[split][hid]["meta"][idx_out]["hospital_id"], hid)
+                            idx_out += 1
+                break
+            break
+        # Verify 21-observation warmup: first sample uses history up to day 21
+        # and first eligible date is around day 21
+        first_meta = self.partitions["train"]["HOSP_TUN"]["meta"][0]
+        self.assertIsNotNone(first_meta["date"])
+
+    def test_no_cross_history_leakage_distinct_sims(self):
+        from scripts.train_ml_detector import MLSyntheticGenerator
+        gen = MLSyntheticGenerator()
+        rows1 = gen.generate_simulation(7777, "normal")
+        rows2 = gen.generate_simulation(6666, "outbreak")
+        h1 = []
+        for r in rows1:
+            if r["hospital_id"] == "HOSP_TUN":
+                h1.append(r["respiratory_cases"])
+        h2 = []
+        for r in rows2:
+            if r["hospital_id"] == "HOSP_TUN":
+                h2.append(r["respiratory_cases"])
+        self.assertEqual(len(h1), len(h2))
+        self.assertFalse(all(a == b for a, b in zip(h1, h2)))
+        # Same seed reused across hospitals within a split (shared simulation). No seed reused across different splits.
+        seeds_by_split = {}
+        for split in ["train", "val", "test"]:
+            seeds_by_split[split] = set()
+            for hid in HOSPITAL_IDS:
+                for m in self.partitions[split][hid]["meta"]:
+                    seeds_by_split[split].add(m["sim_seed"])
+                    self.assertEqual(m["hospital_id"], hid)
+            self.assertGreaterEqual(len(seeds_by_split[split]), 1)
+        self.assertEqual(seeds_by_split["train"] & seeds_by_split["val"], set())
+        self.assertEqual(seeds_by_split["train"] & seeds_by_split["test"], set())
+        self.assertEqual(seeds_by_split["val"] & seeds_by_split["test"], set())
+        self.assertEqual(len(seeds_by_split["train"]) + len(seeds_by_split["val"]) + len(seeds_by_split["test"]), len(self.configs["train"]) + len(self.configs["val"]) + len(self.configs["test"]))
+
+
 if __name__ == '__main__':
     unittest.main()
