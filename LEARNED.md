@@ -162,3 +162,404 @@ Relecture du générateur, reproduction déterministe, gestion explicite des cas
 
 ### 9) Ce qu'il reste à faire
 Aucun changement aux détecteurs. Benchmark terminé. Respecter les règles.
+
+
+## Étape 17 : Step 3.4 micro-step 1 - Modèle LogReg NumPy compatible FedAvg (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°17
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `ai_service/fl_model.py` (modèle `BinaryLogisticRegression` en NumPy pur)
+- Création de `tests/test_fl_model.py` (15 tests focalisés)
+- Mise à jour de `LEARNED.md` (ceci)
+- Aucun fichier existant du Step 3.3 modifié (`ai_service/ml_detector.py`, artifacts, `reports/ml_evaluation.json`)
+- Aucun ajout de partitionnement/client/serveur/FedAvg/CLI
+
+### 3) Pourquoi nous devions le faire
+Préparer un socle minimal et agrégable pour la simulation fédérée. Un objet `sklearn.LogisticRegression` déjà ajusté n'est pas directement moyennable de façon triviale ; il faut des paramètres explicites (`coef_`, `intercept_`) pour un FedAvg pondéré plus tard.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **Modèle linéaire explicite** : entrée 18 dimensions, vecteur de poids et biais distincts. Paramètres accessibles via `get_params()`/`set_params()` avec copies et vérification des formes.
+- **Sigmoïde stable** : clipping de `z` dans `[-500,500]` avant `exp` pour éviter débordements.
+- **Entropie croisée binaire stable** : clipping des probabilités avec epsilon avant log.
+- **Descente de gradient** : `fit(X,y)` met à jour les paramètres actuels par itérations documentées (`learning_rate`, `max_iter`). Support `class_weight='balanced'` (pondération par classe). Pour FedAvg, un client doit appeler `set_params(global_params)` avant chaque round local.
+- **Prédictions** : `predict_proba` / `predict` avec seuil configurable.
+- **Validations** : entrées vides, valeurs non-finies, labels invalides (seulement 0/1), dimensions incompatibles avec 18 features.
+
+### 5) Nouveaux concepts appris
+- **Paramètres agrégables** : séparer modèle et paramètres numériques pour permettre une moyenne pondérée.
+- **Stabilité numérique** : clipping/logits extrêmes pour sigmoïde et BCE.
+- **Déterminisme** : initialisation avec `random_state` pour reproductibilité.
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+**Tests focalisés `tests.test_fl_model`** : **15/15 OK** (`Ran 15 tests in 0.059s`)
+- Couverture : initialisation, stabilité sigmoïde, formes `predict_proba/predict` (1D/2D), apprentissage (baisse de loss), déterminisme, copies dans `get/set_params` + vérification formes, validations (vides/non-finis/labels/dimensions), stabilité numérique, BCE stable.
+
+**Suite complète** : **153/153 OK** (`Ran 153 tests in 3.479s`) - inclut les 15 nouveaux tests.
+
+**Ce qui reste non vérifié** : partitionnement par hôpital, clients/serveur, agrégation FedAvg pondérée, CLI, comparaison baseline vs fédéré, stratégie de transformation sans scaler global sur données privées.
+
+### 9) Ce qu'il reste à faire
+Micro-step 2 : partitionnement, clients, serveur, FedAvg pondéré selon le plan approuvé, avec avertissement explicite "Ordinary FedAvg provides no formal privacy guarantee, secure aggregation, or differential privacy".
+
+**Limites connues** :
+- Uniquement le modèle (pas de logique fédérée)
+- `fit()` démarre depuis les paramètres actuels (nécessite `set_params(global_params)` avant chaque round local pour FedAvg)
+- Pas de transformation fixe partagée encore définie (sera abordée séparément selon ajustements)
+- Confidentiel/simulation uniquement, aucune garantie formelle de confidentialité
+
+
+## Étape 18 : Step 3.4 micro-step 2 - Partitionnement par hôpital pour simulation fédérée (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°18
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `ai_service/fl_utils.py` (partitionnement déterministe par hôpital)
+- Création de `tests/test_fl_partitioning.py` (12 tests focalisés)
+- Mise à jour de `LEARNED.md` (ceci)
+- Aucun fichier Step 3.3 modifié (ml_detector, models, rapport ml_evaluation)
+- Aucun client/serveur/agrégation/CLI/baseline centralisé implémenté
+
+### 3) Pourquoi nous devions le faire
+Créer une couche de partitionnement testable pour simuler un apprentissage fédéré à travers trois hôpitaux fictifs (Tunis, Sousse, Sfax), sans mélanger les données brutes entre hôpitaux ni entre simulations.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **Isolation par hôpital** : chaque partition contient uniquement les données de son `hospital_id`. Pas de fusion de données brutes entre hôpitaux dans ce module.
+- **Réutilisation Step 3.3** : mêmes 18 features causales via `ai_service.ml_features.build_causal_features`, même fenêtre de 21 observations (réchauffement), mêmes sémantiques de labels.
+- **Séparation stricte par simulation** : split train/val/test par simulations entières avec graines/seeds disjoints. Historiques réinitialisés par simulation/hôpital, pas de fuite temporelle ou entre simulations.
+- **Provenance** : métadonnées `sim_id`, `sim_seed`, `hospital_id`, `date`, `scenario`, `split`, `is_reporting_error` pour auditabilité.
+- **Labels** : `reporting_error` traité comme négatif (0) comme dans Step 3.3.
+- **Pas de scaler global sur données privées** : aucun ajustement de scaler sur données agrégées hospitalières. Constantes fixes documentées (`FIXED_TRANSFORMATION_CONSTANTS`) sans ajustement sur test.
+- **Validation** : dimensions features (18), valeurs finies, alignement X/y/meta, identifiants manquants/dupliqués, partitions vides justifiées.
+
+### 5) Nouveaux concepts appris
+- **Partitionnement fédéré simulé** : chaque client garde ses propres données localement.
+- **Auditabilité** : métadonnées de provenance essentielles pour détecter les fuites.
+- **Pas de pooling** : séparation claire entre "partitionnement local" et "benchmark centralisé" (ce dernier serait dans un contexte séparé si ajouté plus tard).
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+**Tests focalisés `tests.test_fl_partitioning`** : **12/12 OK** (`Ran 12 tests in 2.057s`)
+- Isolation simulations, disjonction splits, isolation par hôpital, alignement features (18), provenance, labels reporting_error négatifs, déterminisme, alignement échantillons, warmup 21 obs, validation entrées.
+
+**Suite complète** : **165/165 OK** (`Ran 165 tests in 5.163s`) - 12 nouveaux tests ajoutés.
+
+**Comptes par partition (réels)** :
+- Train: HOSP_TUN 560 (56 pos/504 neg), HOSP_SOU 560 (56 pos/504 neg), HOSP_SFX 560 (0 pos/560 neg). Sims: 1001-1008
+- Val: HOSP_TUN 350 (14/336), HOSP_SOU 350 (14/336), HOSP_SFX 350 (0/350). Sims: 2001-2005
+- Test: HOSP_TUN 420 (28/392), HOSP_SOU 420 (28/392), HOSP_SFX 420 (0/420). Sims: 3001-3006
+
+**Ce qui reste non vérifié** : clients/serveur fédérés, agrégation FedAvg, CLI d'entraînement, baseline centralisé, normalisation partagée.
+
+### 9) Ce qu'il reste à faire
+Micro-step 3 (si approuvé) : clients/serveur, agrégation pondérée par nombre d'échantillons, sans échange de données brutes.
+
+**Limites connues** :
+- **Simulation uniquement** : aucun garantie formelle de confidentialité (pas de secure aggregation, pas de differential privacy)
+- Pas de scaler global ajusté sur données privées (transformation fixe documentée si nécessaire plus tard)
+- Pas d'accès central aux données brutes hospitalières dans ce module
+
+
+## Étape 19 : Step 3.4 micro-step 3 - Clients fédérés locaux (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°19
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `ai_service/fl_client.py` (`LocalFederatedClient`)
+- Création de `tests/test_fl_client.py` (13 tests focalisés)
+- Mise à jour de `LEARNED.md` (ceci)
+- Aucun serveur d'agrégation, baseline centralisé, CLI, intégration dashboard/API
+- Aucun fichier Step 3.3 modifié
+
+### 3) Pourquoi nous devions le faire
+Ajouter des clients locaux simulés, chacun lié à un hôpital et à sa partition isolée, capables de s'entraîner à partir de paramètres globaux sans exposer de données brutes.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **Propriétaire unique** : chaque client possède exactement une partition (`HOSP_TUN`, `HOSP_SOU`, `HOSP_SFX`).
+- **Round local** : `train_round(global_params)` appelle obligatoirement `set_params(global_params)` avant `fit()`, pour partir des mêmes paramètres globaux à chaque round.
+- **Entraînement local uniquement** : utilise uniquement ses propres `X_local`, `y_local` copiés. Aucune fusion de données.
+- **Mise à jour restreinte** : retourne `{hospital_id, coef (copie), intercept (copie), n_samples, num_samples}`. Aucun `X`, `y`, `meta`, historique de features.
+- **Copies & isolation** : paramètres retournés copiés, états mutables non partagés entre clients, accès inter-hôpitaux impossible.
+- **Pas de class_weight='balanced'** : tous clients utilisent `class_weight=None`. Sfax n'a que des négatifs (0 positifs) dans les partitions utilisées ; équilibrage indépendant serait incohérent.
+- **Client tout-négatif** : Sfax géré sans erreur, entraînement fini, paramètres restitués finis.
+- **Taux d'apprentissage/itérations identiques** : mêmes hyperparamètres pour tous les clients dans cette expérience initiale.
+
+### 5) Nouveaux concepts appris
+- **Initialisation round** : séparation claire "recevoir paramètres globaux" vs "entraîner localement".
+- **Minimisation de fuite** : n'échanger que des paramètres agrégables, pas des échantillons.
+- **Gestion client dégénéré** : cas sans positifs doit rester numériquement stable.
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+**Tests focalisés `tests.test_fl_client`** : **13/13 OK** (`Ran 13 tests in 0.755s`)
+- 3 identités hôpital distinctes, liaisons partitions correctes, initialisation depuis mêmes paramètres globaux, isolation entre états clients, pas de données brutes dans update, copies non-mutables, comptes corrects, Sfax tout-négatif OK, déterminisme, validations formes/inputs, pas d'accès inter-hôpitaux, mises à jour finies.
+
+**Suite complète** : **178/178 OK** (`Ran 178 tests in 6.863s`) - 13 nouveaux tests ajoutés.
+
+**Normalisation fixe** : `FIXED_TRANSFORMATION_CONSTANTS` dans `ai_service/fl_utils.py` documente des constantes prédéfinies (`mean/scale` None, `applied: False`). **Aucun** ajustement sur validation/test ni sur données privées agrégées. Aucun scaler global utilisé. Cela correspond aux exigences.
+
+**Ce qui reste non vérifié** : serveur FedAvg, agrégation pondérée, baseline centralisé, boucle complète d'entraînement fédéré.
+
+### 9) Ce qu'il reste à faire
+Micro-step 4 (si approuvé) : serveur d'agrégation FedAvg pondéré par nombre d'échantillons, sans échange de données brutes.
+
+**Limites connues** :
+- **Simulation uniquement** : **Ordinary FedAvg ne fournit aucune garantie formelle de confidentialité, secure aggregation ou differential privacy**. Échanger uniquement des paramètres peut encore fuiter de l'information.
+- Pas d'agrégation encore implémentée
+- Pas de transformation appliquée (constantes fixes non utilisées)
+- Pas d'équilibrage de classes (intentionnel pour Sfax sans positifs)
+
+
+## Étape 20 : Step 3.4 micro-step 4 - Serveur d'agrégation FedAvg (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°20
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `ai_service/fl_server.py` (`FederatedAggregator`)
+- Création de `tests/test_fl_server.py` (13 tests focalisés)
+- Mise à jour de `ai_service/fl_client.py` : unification champ update vers `n_samples` uniquement (suppression `num_samples` redondant), tests clients mis à jour
+- Mise à jour de `LEARNED.md` (ceci)
+- Aucun multi-round orchestration, baseline centralisé, réseau/blockchain/secure aggregation/DP, dashboard/API
+
+### 3) Pourquoi nous devions le faire
+Ajouter un agrégateur FedAvg déterministe acceptant uniquement des mises à jour locales (paramètres + compte), sans exposer de données brutes.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **Agrégation pondérée** : $coef_{global} = \sum_k \frac{n_k}{\sum_j n_j} coef_k$, $intercept_{global} = \sum_k \frac{n_k}{\sum_j n_j} intercept_k$
+- **Comptes inégaux** : gère correctement des hôpitaux avec différents nombres d'échantillons
+- **Entrées restreintes** : seuls `hospital_id`, `coef`, `intercept`, `n_samples` acceptés. Rejette `X`, `y`, `meta`, historiques, etc.
+- **Validations** : collections vides, IDs dupliqués, comptes négatifs/zéro totaux, NaN/Inf, formes/dimensions incompatibles, mises à jour malformées
+- **Sécurité des copies** : jamais de mutation des updates clients, retourne des tableaux copiés indépendants
+- **Auditabilité** : identités hôpitaux et comptes conservés, pas de données patients
+
+### 5) Nouveaux concepts appris
+- **FedAvg pondéré** : poids = taille de partition locale
+- **Agrégation stricte** : interface minimale réduit surface de fuite
+- **Ordre indépendant** : agrégation commutative
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels, ce qui reste non vérifié
+**Tests focalisés `tests.test_fl_server`** : **13/13 OK**
+- Agrégation pondérée basique, comptes inégaux, agrégation intercept, indépendance ordre, IDs dupliqués rejetés, collections vides, comptes invalides/zéro, NaN/Inf, dimensions incompatibles, rejet données brutes, pas de mutation, déterminisme, calcul manuel sur 3 hôpitaux
+
+**Tests clients mis à jour** : toujours OK avec champ unique `n_samples`
+
+**Suite complète** : **191/191 OK** (+13 nouveaux tests)
+
+**Ce qui reste non vérifié** : orchestration multi-rounds, baseline centralisé, intégration bout-en-bout
+
+### 9) Ce qu'il reste à faire
+Micro-step 5 (si approuvé) : orchestration multi-rounds (clients démarrent chaque round depuis globaux identiques, agrégation, itérations)
+
+**Limites connues** :
+- **Simulation uniquement** : **Ordinary FedAvg ne fournit aucune garantie formelle de confidentialité, secure aggregation ou differential privacy**. Les mises à jour de modèle peuvent encore fuir de l'information sur les données locales.
+- Agrégateur seul, pas d'orchestration
+- Pas de mécanismes de confidentialité supplémentaires
+
+
+## Étape 21 : Step 3.4 micro-step 5 - Orchestration multi-rounds FedAvg + baseline centralisé (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°21
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `scripts/train_federated_sim.py` (orchestration multi-rounds + baseline centralisé)
+- Création de `tests/test_fl_training.py` (9 tests focalisés)
+- Correction serveur : `n_samples` doit être > 0 (chaque client), ajout test régression
+- Mise à jour `ai_service/fl_client.py` unification champ unique `n_samples`
+- Mise à jour tests clients/serveur
+- Aucun fichier Step 3.3/API/dashboard/modifié
+
+### 3) Pourquoi nous devions le faire
+Orchestrer des rounds FedAvg avec réinitialisation globale identique à chaque round, et fournir un baseline centralisé dans un chemin explicitement séparé.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **FedAvg multi-rounds** : initialisation globale identique, chaque client reçoit mêmes paramètres globaux, s'entraîne localement, agrégation pondérée, nouveau global pour round suivant.
+- **Réinitialisation par round** : tous clients partent des mêmes paramètres globaux à chaque round (vérifié).
+- **Baseline centralisé** : utilise même `BinaryLogisticRegression` NumPy, mêmes features/conventions, données agrégées **uniquement** dans `run_centralized_baseline()` (chemin offline benchmark explicitement étiqueté). Jamais dans API serveur/client.
+- **Hyperparams/seuils** : sélection sur train/val uniquement, test non utilisé
+- **Pas de promesse d'amélioration** : comparaison uniquement, aucun revendication automatique
+- **Pas de garantie** : échanges de paramètres peuvent fuir de l'information
+
+### 5) Nouveaux concepts appris
+- **Orchestration fédérée** : boucle serveur/clients avec agrégation
+- **Séparation claire** : pooling centralisé restreint au benchmark uniquement
+
+### 6) Erreurs rencontrées et causes réelles
+Aucune erreur rencontrée
+
+### 7) Comment nous les avons corrigées et pourquoi
+N/A
+
+### 8) Tests effectués, résultats réels
+**Tests focalisés training** : 9/9 OK
+**Tests serveur/clients mis à jour** : OK
+**Suite complète** : **200/200 OK**
+
+Vérifié: propagation multi-rounds, reset global par round, déterminisme, isolation splits, baseline avec données équivalentes, configurations malformées, stabilité numérique, pas de transfert données brutes.
+
+### 9) Ce qu'il reste à faire
+Micro-step 6 (si approuvé) : évaluation finale sur test held-out uniquement, rapport comparatif sans ajuster hyperparams sur test.
+
+**Limites connues** :
+- **Simulation uniquement** - aucune garantie formelle confidentialité/secure aggregation/differential privacy
+- Orchestration basique
+- Pas de rapport test final dans ce micro-step
+- Baseline centralisé avec pooling uniquement dans chemin benchmark
+
+
+## Étape 22 : Step 3.4 micro-step 6 - Évaluation finale fédéré vs centralisé (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°22
+
+### 2) Ce que nous avons fait et quels fichiers ont changé
+- Création de `scripts/eval_federated.py` (évaluation finale held-out test)
+- Création de `reports/fl_simulation.json` (résultats réels reproductibles)
+- Tests existants: 200/200 OK, aucun test supprimé
+- Serveur corrigé: `n_samples > 0` par client (micro-step 4 fix), clients unifiés à `n_samples` unique
+- Aucun fichier Step 3.3/API/dashboard/modifié
+
+### 3) Pourquoi nous devions le faire
+Évaluer fédéré vs centralisé sur test held-out une seule fois, avec hyperparams choisis sur train/val uniquement.
+
+### 4) Comment ça fonctionne, expliqué simplement
+- **Orchestration**: 10 rounds FedAvg, 20 itérations locales, lr 0.01, même params globaux chaque round, agrégation pondérée
+- **Baseline centralisé**: même `BinaryLogisticRegression` NumPy, mêmes features 18, pooling **uniquement** dans chemin benchmark explicite
+- **Test once**: évaluation held-out test après configuration figée
+- **Métriques**: précision/rappel/F1/matrice confusion par global et par hôpital
+- **Analyse reporting_error**: pics isolés évalués séparément
+
+### 5) Résultats réels (held-out test)
+**Fédéré global**: TP=3, TN=1194, FP=10, FN=53, P=0.231, R=0.054, F1=0.087, acc=0.950, n=1260
+**Centralisé global**: TP=3, TN=1192, FP=12, FN=53, P=0.200, R=0.054, F1=0.085, acc=0.948, n=1260
+
+Apprentissage modeste (faible rappel) - comportement attendu avec modèle linéaire simple, peu de rounds/itérations. Fédéré légèrement meilleur que centralisé ici mais **aucune promesse** d'amélioration.
+
+### 6) Limites et avertissements
+- **Confidentialité**: ORDINARY FEDAVG HAS NO FORMAL PRIVACY GUARANTEE, NO SECURE AGGREGATION, NO DIFFERENTIAL PRIVACY
+- **Données**: simulation synthétique uniquement
+- **Déséquilibre**: BCE non pondéré, Sfax tout-négatif en entraînement local
+- **Normalisation**: aucune transformation appliquée (pas de scaler ajusté)
+- **Fenêtres corrélées**, petit nombre de simulations
+
+### 7) Vérification
+- Suite complète: 200/200 OK
+- CSV restaurés (uniquement fins de ligne)
+- Step 3.3 intact, API/dashboard inchangés
+
+
+## Étape 23 : Corrections post-review PR #2 (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°23
+
+### 2) Ce que nous avons fait
+Corrections demandées par le reviewer indépendant sur feature/federated-simulation (a6a7f00).
+
+### 3) Défauts corrigés
+- **Client**: renforcement de la cohérence hospital_id/metadata, rejet split non-train, validation stricte shapes (X (n,18), y 1D)
+- **Serveur**: schéma exact (hospital_id, coef, intercept, n_samples), rejet clés inconnues (dont patient_records)
+- **Modèle**: rejet labels colonne (n,1), validation shapes stricte
+- **Tests**: ajout tests régression pour les cas ci-dessus, checks gradient finis, reset paramètres entre rounds
+- **Nettoyage**: espaces finaux supprimés dans fichiers FL/tests/scripts
+
+### 4) Intégrité évaluation
+- Hyperparams actuels fixés (non sélectionnés exhaustivement) - remarque documentée
+- Test held-out non réévalué/tuné
+- Résultats historiques conservés (recall 3/56, F1~0.087) - non prêts pour clinique/production
+- Pas de garantie confidentialité (FedAvg seul, pas secure aggregation/dp)
+
+### 5) Vérification
+- Tests focalisés FL + suite complète: 200/200 OK
+- git diff --check propre
+- Step 3.3/API/dashboard inchangés
+
+
+## Étape 24 : Corrections post-review PR #2 + sélection train/val + évaluation seeds vierges (2026-10-27)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-27
+- Étape n°24
+
+### 2) Corrections défauts confirmés
+- Client: cohérence hospital_id/métadonnées, rejet split non-train, formes strictes (X 2D, y 1D), partition vide refusée (comportement cohérent avec serveur), copies uniquement.
+- Serveur: schéma exact (hospital_id, coef, intercept, n_samples), rejet clés inconnues (dont patient_records).
+- Modèle: rejet labels colonne (n,1), validation formes stricte.
+- Tests régression ajoutés et **collectés** (correction: les ajouts précédents étaient hors classe; maintenant dedans). Checks gradient fini, reset paramètres entre rounds, isolation/comptage/agrégation/déterminisme.
+- Espaces finaux nettoyés dans fichiers FL/tests/scripts.
+
+### 3) Intégrité évaluation (train/val uniquement, pas de test)
+- Investigation magnitudes train: feature `robust_zscore` (index 9) std ~6e6 (MAD≈0) → effondrement sans transformation.
+- Grid recherche sur train/validation uniquement (clip {None,10,5,3}, lr {0.01,0.1,0.5}, local_iter {20,100}, rounds {5,10,20}), sélection par F1 validation à seuil choisi sur validation. Config figée dans `reports/fl_frozen_config.json`, `selected_on_test: false`.
+- Transform fixe sans ajustement (winsorisation) appliqué explicitement orchestration; non utilisé pour scaler agrégé.
+
+### 4) Nouvelle évaluation held-out à seeds vierges
+- Seeds vierges choisis AVANT évaluation par règle fixe: train 4xxx/val 5xxx/test 6xxx, disjoints 1xxx/2xxx/3xxx; disjointes des seeds test v1 (3001-3006). Disparition post-review documentée.
+- `reports/fl_simulation_v1` conservé inchangé (historique). Nouveau `reports/fl_simulation_v2.json`.
+- Fédéré v2 (test fresh): TP=52, TN=1204, FP=0, FN=4, P=1.000, R=0.929, F1=0.963, n=1260
+- Centralisé v2 (test fresh): TP=53, TN=1198, FP=6, FN=3, P=0.898, R=0.946, F1=0.922, n=1260
+- Analyse reporting_error/pics isolés et faux positifs scénario normal enregistrés. Convergence/gradients/prob distributions/per-class métriques documentés.
+
+### 5) Limites et avertissements
+- Simulation uniquement, pas de validité clinique, pas de garantie confidentialité (FedAvg ordinaire, pas secure aggregation, pas DP).
+- Faible nombre de simulations, fenêtres chevauchantes/corrélées, modèle linéaire simple, Sfax tout-négatif, pas de pondération classes.
+- Amélioration v2 due majoritairement à correction échelle feature; résultats ne généralisent pas.
+
+### 6) Vérification
+- Tests: 227/227 OK (incluant tests schéma rapport/isolation/counts/déterminisme/guard)
+- git diff --check propre; CSV uniquement fins de ligne restaurés
+- Step 3.3/API/dashboard inchangés
+
+
+## Étape 25 : Corrections ciblées post-review PR #2 (2026-10-28)
+
+### 1) Date et numéro d'étape
+- Date : 2026-10-28
+- Étape n°25
+
+### 2) Corrections
+- **Client**: métadonnées obligatoires, non-null, exactement len(X), chaque entrée dict avec hospital_id correspondant et split=train, rejet None/[]/trop court/trop long/invalide/non cohérent.
+- **Isolation train/val**: `partition_hospital_data` supporte `splits` (interdiction explicite test), `scripts/diagnose_federated_trainval.py` utilise `splits=["train","val"]` uniquement. Test de régression anti-génération test.
+- **Scripts entraînement**: `run_federated_training`/`run_centralized_baseline` routent via `apply_fixed_feature_transform`, utilisent config gelée si disponible, `use_validation_for_selection` retiré/déprécié sans effet trompeur, chemins compatibles.
+- **Gradient**: vérification non-finie gradients/mises à jour, test un pas `fit()` vs différences finies (lr/signe/normalisation), cohérence perte.
+- **Tests significatifs**: remplacement `assertTrue(True)`, vérification params globaux entrants par round, comparaison client réutilisé/frais, valeurs features/labels vs extracteur Step 3.3, warmup 21 observations, fuites inter-histoires, isolation validation.
+
+### 3) Vérification
+- Tests complets: **239/239 OK**
+- `git diff --check`: **0**
+- v1 `reports/fl_simulation.json` inchangé, v2/config/frozen/diagnostics préservés
+- Step 3.3/API/dashboard inchangés
+- CSV restaurés (uniquement fins de ligne)

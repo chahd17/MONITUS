@@ -1,0 +1,918 @@
+{
+  "version": "v2",
+  "supersedes_for_current_findings": null,
+  "historical_report": {
+    "path": "reports/fl_simulation.json",
+    "status": "preserved unchanged",
+    "note": "v1 evaluated already-consumed test seeds 3001-3006 and is kept unchanged as history. v2 does NOT replace it."
+  },
+  "disclosure": "This v2 evaluation was produced AFTER and IN RESPONSE TO review of the first (v1) test results. v1 test seeds were never re-used or re-tuned.",
+  "seed_rule": "Reserved disjoint contiguous blocks fixed before evaluation: 4xxx train, 5xxx validation, 6xxx test. Disjoint from Step 3.3 and from v1 seeds (1xxx/2xxx/3xxx). Chosen after review of v1 test results, disclosed.",
+  "fresh_seeds": {
+    "train": [
+      [
+        4001,
+        "normal"
+      ],
+      [
+        4002,
+        "outbreak"
+      ],
+      [
+        4003,
+        "outbreak"
+      ],
+      [
+        4004,
+        "outbreak"
+      ],
+      [
+        4005,
+        "outbreak"
+      ],
+      [
+        4006,
+        "reporting_error"
+      ],
+      [
+        4007,
+        "reporting_error"
+      ],
+      [
+        4008,
+        "reporting_error"
+      ]
+    ],
+    "val": [
+      [
+        5001,
+        "outbreak"
+      ],
+      [
+        5002,
+        "normal"
+      ],
+      [
+        5003,
+        "reporting_error"
+      ],
+      [
+        5004,
+        "reporting_error"
+      ],
+      [
+        5005,
+        "reporting_error"
+      ]
+    ],
+    "test": [
+      [
+        6001,
+        "outbreak"
+      ],
+      [
+        6002,
+        "outbreak"
+      ],
+      [
+        6003,
+        "normal"
+      ],
+      [
+        6004,
+        "reporting_error"
+      ],
+      [
+        6005,
+        "reporting_error"
+      ],
+      [
+        6006,
+        "reporting_error"
+      ]
+    ]
+  },
+  "metadata": {
+    "timestamp": "2026-10-27T02:29:03.932504+00:00",
+    "script": "scripts/eval_federated_v2.py",
+    "frozen_config_path": "reports/fl_frozen_config.json",
+    "frozen_config": {
+      "clip": 10.0,
+      "learning_rate": 0.5,
+      "local_iterations": 20,
+      "rounds": 20,
+      "threshold": 0.5,
+      "random_state": 42,
+      "class_weight": null,
+      "n_features": 18,
+      "window_size": 21,
+      "selection_data": "TRAIN fit / VALIDATION selection only (test split never loaded)",
+      "selected_on_test": false,
+      "selected_at": "2026-10-27T02:29:00.777827+00:00"
+    },
+    "threshold": 0.5,
+    "normalization": "fixed winsorisation of robust_zscore (index 9) to +/-10.0; NOT fitted, NOT privacy-preserving",
+    "feature_count": 18,
+    "window_size": 21,
+    "python_version": "3.13.7",
+    "numpy_version": "2.5.4",
+    "test_evaluated_once": true,
+    "optimization_budget": {
+      "federated": {
+        "rounds": 20,
+        "local_iterations_per_client_per_round": 20,
+        "total_local_gradient_steps_per_client": 400
+      },
+      "centralized": {
+        "full_batch_gradient_steps": 400,
+        "n_train_samples": 1680
+      }
+    }
+  },
+  "privacy_warning": "ORDINARY FEDAVG HAS NO FORMAL PRIVACY GUARANTEE, NO SECURE AGGREGATION, AND NO DIFFERENTIAL PRIVACY. Model updates can leak information about local data. This is a simulation only.",
+  "clinical_warning": "NOT READY FOR CLINICAL OR PRODUCTION USE. Synthetic data and a simple linear model; no outbreak-detection claim.",
+  "partition_summary": {
+    "train": {
+      "HOSP_TUN": {
+        "n_samples": 560,
+        "n_pos": 56,
+        "n_neg": 504,
+        "sim_ids": [
+          "sim_4001",
+          "sim_4002",
+          "sim_4003",
+          "sim_4004",
+          "sim_4005",
+          "sim_4006",
+          "sim_4007",
+          "sim_4008"
+        ]
+      },
+      "HOSP_SOU": {
+        "n_samples": 560,
+        "n_pos": 56,
+        "n_neg": 504,
+        "sim_ids": [
+          "sim_4001",
+          "sim_4002",
+          "sim_4003",
+          "sim_4004",
+          "sim_4005",
+          "sim_4006",
+          "sim_4007",
+          "sim_4008"
+        ]
+      },
+      "HOSP_SFX": {
+        "n_samples": 560,
+        "n_pos": 0,
+        "n_neg": 560,
+        "sim_ids": [
+          "sim_4001",
+          "sim_4002",
+          "sim_4003",
+          "sim_4004",
+          "sim_4005",
+          "sim_4006",
+          "sim_4007",
+          "sim_4008"
+        ]
+      }
+    },
+    "val": {
+      "HOSP_TUN": {
+        "n_samples": 350,
+        "n_pos": 14,
+        "n_neg": 336,
+        "sim_ids": [
+          "sim_5001",
+          "sim_5002",
+          "sim_5003",
+          "sim_5004",
+          "sim_5005"
+        ]
+      },
+      "HOSP_SOU": {
+        "n_samples": 350,
+        "n_pos": 14,
+        "n_neg": 336,
+        "sim_ids": [
+          "sim_5001",
+          "sim_5002",
+          "sim_5003",
+          "sim_5004",
+          "sim_5005"
+        ]
+      },
+      "HOSP_SFX": {
+        "n_samples": 350,
+        "n_pos": 0,
+        "n_neg": 350,
+        "sim_ids": [
+          "sim_5001",
+          "sim_5002",
+          "sim_5003",
+          "sim_5004",
+          "sim_5005"
+        ]
+      }
+    },
+    "test": {
+      "HOSP_TUN": {
+        "n_samples": 420,
+        "n_pos": 28,
+        "n_neg": 392,
+        "sim_ids": [
+          "sim_6001",
+          "sim_6002",
+          "sim_6003",
+          "sim_6004",
+          "sim_6005",
+          "sim_6006"
+        ]
+      },
+      "HOSP_SOU": {
+        "n_samples": 420,
+        "n_pos": 28,
+        "n_neg": 392,
+        "sim_ids": [
+          "sim_6001",
+          "sim_6002",
+          "sim_6003",
+          "sim_6004",
+          "sim_6005",
+          "sim_6006"
+        ]
+      },
+      "HOSP_SFX": {
+        "n_samples": 420,
+        "n_pos": 0,
+        "n_neg": 420,
+        "sim_ids": [
+          "sim_6001",
+          "sim_6002",
+          "sim_6003",
+          "sim_6004",
+          "sim_6005",
+          "sim_6006"
+        ]
+      }
+    }
+  },
+  "convergence_history": [
+    {
+      "round": 1,
+      "weighted_train_loss_at_round_start": 0.6930969115840772,
+      "weighted_gradient_norm_at_round_start": 14.259494298238263,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 12.899241459781091,
+        "HOSP_SOU": 11.6852954923195,
+        "HOSP_SFX": 18.193945942614192
+      },
+      "val_loss": 0.9868237058825017,
+      "val_f1_at_frozen_threshold": 0.0
+    },
+    {
+      "round": 2,
+      "weighted_train_loss_at_round_start": 2.4519222242685954,
+      "weighted_gradient_norm_at_round_start": 5.818656551939357,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 7.1004493507853805,
+        "HOSP_SOU": 6.855683582218197,
+        "HOSP_SFX": 3.4998367228144938
+      },
+      "val_loss": 0.6478298838059282,
+      "val_f1_at_frozen_threshold": 0.42857142857142855
+    },
+    {
+      "round": 3,
+      "weighted_train_loss_at_round_start": 1.2611619850206184,
+      "weighted_gradient_norm_at_round_start": 4.550844360615292,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 3.118474180661296,
+        "HOSP_SOU": 2.8243276856570727,
+        "HOSP_SFX": 7.7097312155275075
+      },
+      "val_loss": 0.4895300558989145,
+      "val_f1_at_frozen_threshold": 0.5365853658536585
+    },
+    {
+      "round": 4,
+      "weighted_train_loss_at_round_start": 0.8711342088797537,
+      "weighted_gradient_norm_at_round_start": 2.6569116683292795,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 3.8905032734091485,
+        "HOSP_SOU": 3.1448257601608405,
+        "HOSP_SFX": 0.9354059714178483
+      },
+      "val_loss": 0.31955093812499796,
+      "val_f1_at_frozen_threshold": 0.6666666666666666
+    },
+    {
+      "round": 5,
+      "weighted_train_loss_at_round_start": 0.3976148713694766,
+      "weighted_gradient_norm_at_round_start": 1.7299917446016848,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 2.052571262428108,
+        "HOSP_SOU": 1.7711402430253471,
+        "HOSP_SFX": 1.366263728351599
+      },
+      "val_loss": 0.19103090580845697,
+      "val_f1_at_frozen_threshold": 0.7346938775510204
+    },
+    {
+      "round": 6,
+      "weighted_train_loss_at_round_start": 0.21686332855646046,
+      "weighted_gradient_norm_at_round_start": 1.093350279158501,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.8896872706537906,
+        "HOSP_SOU": 0.9036120757581239,
+        "HOSP_SFX": 1.4867514910635888
+      },
+      "val_loss": 0.16715885990677007,
+      "val_f1_at_frozen_threshold": 0.76
+    },
+    {
+      "round": 7,
+      "weighted_train_loss_at_round_start": 0.19278650683385698,
+      "weighted_gradient_norm_at_round_start": 1.02419420999456,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.868624421169809,
+        "HOSP_SOU": 0.9017573364615344,
+        "HOSP_SFX": 1.3022008723523366
+      },
+      "val_loss": 0.10626454093412968,
+      "val_f1_at_frozen_threshold": 0.8727272727272727
+    },
+    {
+      "round": 8,
+      "weighted_train_loss_at_round_start": 0.11431044948189184,
+      "weighted_gradient_norm_at_round_start": 0.7343972497807989,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.4989734069632623,
+        "HOSP_SOU": 0.5096534651385375,
+        "HOSP_SFX": 1.1945648772405968
+      },
+      "val_loss": 0.08380053282143096,
+      "val_f1_at_frozen_threshold": 0.8928571428571429
+    },
+    {
+      "round": 9,
+      "weighted_train_loss_at_round_start": 0.09370584871853584,
+      "weighted_gradient_norm_at_round_start": 0.5709537467749422,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.28521966089301076,
+        "HOSP_SOU": 0.40020642337847007,
+        "HOSP_SFX": 1.0274351560533455
+      },
+      "val_loss": 0.0754694498836625,
+      "val_f1_at_frozen_threshold": 0.9090909090909091
+    },
+    {
+      "round": 10,
+      "weighted_train_loss_at_round_start": 0.08621127574355308,
+      "weighted_gradient_norm_at_round_start": 0.5459354621647091,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.27974820766560243,
+        "HOSP_SOU": 0.4018364546431945,
+        "HOSP_SFX": 0.9562217241853304
+      },
+      "val_loss": 0.07009372217902543,
+      "val_f1_at_frozen_threshold": 0.9090909090909091
+    },
+    {
+      "round": 11,
+      "weighted_train_loss_at_round_start": 0.08352497277914739,
+      "weighted_gradient_norm_at_round_start": 0.5391356937535298,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.27822244049511,
+        "HOSP_SOU": 0.40358678662305075,
+        "HOSP_SFX": 0.9355978541424286
+      },
+      "val_loss": 0.06023643763992463,
+      "val_f1_at_frozen_threshold": 0.9090909090909091
+    },
+    {
+      "round": 12,
+      "weighted_train_loss_at_round_start": 0.0795120848384451,
+      "weighted_gradient_norm_at_round_start": 0.5397481069814948,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.2768258804717615,
+        "HOSP_SOU": 0.40698592716327814,
+        "HOSP_SFX": 0.9354325133094447
+      },
+      "val_loss": 0.04831895439213982,
+      "val_f1_at_frozen_threshold": 0.9090909090909091
+    },
+    {
+      "round": 13,
+      "weighted_train_loss_at_round_start": 0.07178188718459148,
+      "weighted_gradient_norm_at_round_start": 0.5425207559539081,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.2792908355956231,
+        "HOSP_SOU": 0.4128641720804778,
+        "HOSP_SFX": 0.9354072601856236
+      },
+      "val_loss": 0.03992205937775435,
+      "val_f1_at_frozen_threshold": 0.9259259259259259
+    },
+    {
+      "round": 14,
+      "weighted_train_loss_at_round_start": 0.06254299282009164,
+      "weighted_gradient_norm_at_round_start": 0.5474834415221335,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.2902184844557598,
+        "HOSP_SOU": 0.4168262360113427,
+        "HOSP_SFX": 0.9354056040992977
+      },
+      "val_loss": 0.03458172229676248,
+      "val_f1_at_frozen_threshold": 0.9259259259259259
+    },
+    {
+      "round": 15,
+      "weighted_train_loss_at_round_start": 0.054955631502683074,
+      "weighted_gradient_norm_at_round_start": 0.5568994844745837,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.3162795161094238,
+        "HOSP_SOU": 0.41936607711722945,
+        "HOSP_SFX": 0.9350528601970979
+      },
+      "val_loss": 0.031157834692317043,
+      "val_f1_at_frozen_threshold": 0.9433962264150945
+    },
+    {
+      "round": 16,
+      "weighted_train_loss_at_round_start": 0.048604776136738304,
+      "weighted_gradient_norm_at_round_start": 0.5509858286819213,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.35663409090943005,
+        "HOSP_SOU": 0.4213367886090276,
+        "HOSP_SFX": 0.8749866065273061
+      },
+      "val_loss": 0.02997190370344583,
+      "val_f1_at_frozen_threshold": 0.9433962264150945
+    },
+    {
+      "round": 17,
+      "weighted_train_loss_at_round_start": 0.04415559637830798,
+      "weighted_gradient_norm_at_round_start": 0.4842587629041669,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.3580995989274191,
+        "HOSP_SOU": 0.4200131815525282,
+        "HOSP_SFX": 0.6746635082325535
+      },
+      "val_loss": 0.027309213620348875,
+      "val_f1_at_frozen_threshold": 0.9259259259259259
+    },
+    {
+      "round": 18,
+      "weighted_train_loss_at_round_start": 0.04215903657745255,
+      "weighted_gradient_norm_at_round_start": 0.5327592317937093,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.2678920097722316,
+        "HOSP_SOU": 0.3987760666704403,
+        "HOSP_SFX": 0.931609618938456
+      },
+      "val_loss": 0.03044992520793361,
+      "val_f1_at_frozen_threshold": 0.923076923076923
+    },
+    {
+      "round": 19,
+      "weighted_train_loss_at_round_start": 0.03924634253223241,
+      "weighted_gradient_norm_at_round_start": 0.3310344497009528,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.4050309598447602,
+        "HOSP_SOU": 0.42143362431387715,
+        "HOSP_SFX": 0.1666387649442211
+      },
+      "val_loss": 0.03646442101175093,
+      "val_f1_at_frozen_threshold": 0.9285714285714286
+    },
+    {
+      "round": 20,
+      "weighted_train_loss_at_round_start": 0.04667055040122538,
+      "weighted_gradient_norm_at_round_start": 0.428507842309517,
+      "per_client_gradient_norm": {
+        "HOSP_TUN": 0.1711714031239586,
+        "HOSP_SOU": 0.17894105125396179,
+        "HOSP_SFX": 0.9354110725506305
+      },
+      "val_loss": 0.027091901290322316,
+      "val_f1_at_frozen_threshold": 0.923076923076923
+    }
+  ],
+  "federated": {
+    "global": {
+      "tp": 52,
+      "tn": 1204,
+      "fp": 0,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.9285714285714286,
+      "f1": 0.962962962962963,
+      "accuracy": 0.9968253968253968,
+      "n_samples": 1260
+    },
+    "per_hospital": {
+      "HOSP_TUN": {
+        "tp": 26,
+        "tn": 392,
+        "fp": 0,
+        "fn": 2,
+        "precision": 1.0,
+        "recall": 0.9285714285714286,
+        "f1": 0.962962962962963,
+        "accuracy": 0.9952380952380953,
+        "n_samples": 420
+      },
+      "HOSP_SOU": {
+        "tp": 26,
+        "tn": 392,
+        "fp": 0,
+        "fn": 2,
+        "precision": 1.0,
+        "recall": 0.9285714285714286,
+        "f1": 0.962962962962963,
+        "accuracy": 0.9952380952380953,
+        "n_samples": 420
+      },
+      "HOSP_SFX": {
+        "tp": 0,
+        "tn": 420,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 420
+      }
+    },
+    "per_hospital_probabilities": {
+      "HOSP_TUN": {
+        "min": 4.095261287346759e-51,
+        "p10": 4.7063873745309654e-15,
+        "p25": 2.4300827295758412e-12,
+        "median": 1.159583703064283e-10,
+        "p75": 7.465331378809002e-09,
+        "p90": 1.3629728921035665e-06,
+        "max": 1.0,
+        "mean": 0.06165159617021352
+      },
+      "HOSP_SOU": {
+        "min": 6.7122307312152236e-21,
+        "p10": 8.63230425149519e-14,
+        "p25": 2.599671900830672e-12,
+        "median": 1.822179997584207e-10,
+        "p75": 1.3114799860923878e-08,
+        "p90": 1.2102635638328775e-06,
+        "max": 1.0,
+        "mean": 0.06189562626066281
+      },
+      "HOSP_SFX": {
+        "min": 1.7380202965372837e-38,
+        "p10": 9.65391842004316e-15,
+        "p25": 3.945748431851355e-13,
+        "median": 1.3849559793547948e-11,
+        "p75": 1.202072834581846e-09,
+        "p90": 9.459236158230822e-08,
+        "max": 0.162465267996868,
+        "mean": 0.0005139697999127016
+      }
+    }
+  },
+  "centralized": {
+    "global": {
+      "tp": 53,
+      "tn": 1198,
+      "fp": 6,
+      "fn": 3,
+      "precision": 0.8983050847457628,
+      "recall": 0.9464285714285714,
+      "f1": 0.9217391304347826,
+      "accuracy": 0.9928571428571429,
+      "n_samples": 1260
+    },
+    "per_hospital": {
+      "HOSP_TUN": {
+        "tp": 26,
+        "tn": 391,
+        "fp": 1,
+        "fn": 2,
+        "precision": 0.9629629629629629,
+        "recall": 0.9285714285714286,
+        "f1": 0.9454545454545454,
+        "accuracy": 0.9928571428571429,
+        "n_samples": 420
+      },
+      "HOSP_SOU": {
+        "tp": 27,
+        "tn": 392,
+        "fp": 0,
+        "fn": 1,
+        "precision": 1.0,
+        "recall": 0.9642857142857143,
+        "f1": 0.9818181818181818,
+        "accuracy": 0.9976190476190476,
+        "n_samples": 420
+      },
+      "HOSP_SFX": {
+        "tp": 0,
+        "tn": 415,
+        "fp": 5,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 0.9880952380952381,
+        "n_samples": 420
+      }
+    },
+    "per_hospital_probabilities": {
+      "HOSP_TUN": {
+        "min": 1.0318767600710337e-57,
+        "p10": 2.3954408485299627e-14,
+        "p25": 3.066689890708294e-11,
+        "median": 2.1097018330130984e-09,
+        "p75": 1.45314583915183e-07,
+        "p90": 1.477915433022164e-05,
+        "max": 1.0,
+        "mean": 0.06419592874315176
+      },
+      "HOSP_SOU": {
+        "min": 2.0270333646952873e-22,
+        "p10": 1.7252475537244305e-12,
+        "p25": 7.21992195318503e-11,
+        "median": 3.32809431462502e-09,
+        "p75": 2.2188035339847726e-07,
+        "p90": 2.780999973571616e-05,
+        "max": 1.0,
+        "mean": 0.06455786644275836
+      },
+      "HOSP_SFX": {
+        "min": 4.086590774214097e-42,
+        "p10": 1.7238131653433243e-13,
+        "p25": 7.868775645688239e-12,
+        "median": 4.22325125026304e-10,
+        "p75": 2.9973503061423075e-08,
+        "p90": 1.436659470716896e-06,
+        "max": 0.9997551559213338,
+        "mean": 0.010844696661598381
+      }
+    }
+  },
+  "per_class_probabilities_test": {
+    "federated": {
+      "positive": {
+        "min": 3.053524575527935e-06,
+        "p10": 0.9857732935952082,
+        "p25": 0.999999999926795,
+        "median": 0.9999999999999747,
+        "p75": 1.0,
+        "p90": 1.0,
+        "max": 1.0,
+        "mean": 0.9262359527775244
+      },
+      "negative": {
+        "min": 4.095261287346759e-51,
+        "p10": 2.1231087951912826e-14,
+        "p25": 9.013053945087763e-13,
+        "median": 4.810987633856381e-11,
+        "p75": 3.160253384927947e-09,
+        "p90": 8.441315190846148e-08,
+        "max": 0.162465267996868,
+        "mean": 0.00019641809085550675
+      }
+    },
+    "centralized": {
+      "positive": {
+        "min": 0.05152583962414825,
+        "p10": 0.9999484509186906,
+        "p25": 0.9999999931629272,
+        "median": 0.9999999999999399,
+        "p75": 1.0,
+        "p90": 1.0,
+        "max": 1.0,
+        "mean": 0.9548256216106835
+      },
+      "negative": {
+        "min": 1.0318767600710337e-57,
+        "p10": 2.8820210822986526e-13,
+        "p25": 1.9645021545594376e-11,
+        "median": 1.0295573859359062e-09,
+        "p75": 5.934513461360953e-08,
+        "p90": 1.4373105455711484e-06,
+        "max": 0.9997551559213338,
+        "mean": 0.004286654290494431
+      }
+    },
+    "n_positive": 56,
+    "n_negative": 1204
+  },
+  "reporting_error_analysis": {
+    "HOSP_TUN": {
+      "n_error_scenario": 210,
+      "n_spike_days": 2,
+      "federated_error_scenario": {
+        "tp": 0,
+        "tn": 210,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 210
+      },
+      "centralized_error_scenario": {
+        "tp": 0,
+        "tn": 209,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 0.9952380952380953,
+        "n_samples": 210
+      },
+      "federated_spike_days": {
+        "tp": 0,
+        "tn": 2,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 2
+      },
+      "centralized_spike_days": {
+        "tp": 0,
+        "tn": 1,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 0.5,
+        "n_samples": 2
+      }
+    },
+    "HOSP_SOU": {
+      "n_error_scenario": 210,
+      "n_spike_days": 0,
+      "federated_error_scenario": {
+        "tp": 0,
+        "tn": 210,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 210
+      },
+      "centralized_error_scenario": {
+        "tp": 0,
+        "tn": 210,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 210
+      }
+    },
+    "HOSP_SFX": {
+      "n_error_scenario": 210,
+      "n_spike_days": 1,
+      "federated_error_scenario": {
+        "tp": 0,
+        "tn": 210,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 210
+      },
+      "centralized_error_scenario": {
+        "tp": 0,
+        "tn": 209,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 0.9952380952380953,
+        "n_samples": 210
+      },
+      "federated_spike_days": {
+        "tp": 0,
+        "tn": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 1
+      },
+      "centralized_spike_days": {
+        "tp": 0,
+        "tn": 0,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 0.0,
+        "n_samples": 1
+      }
+    }
+  },
+  "normal_scenario_false_positives": {
+    "HOSP_TUN": {
+      "federated": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      },
+      "centralized": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      }
+    },
+    "HOSP_SOU": {
+      "federated": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      },
+      "centralized": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      }
+    },
+    "HOSP_SFX": {
+      "federated": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      },
+      "centralized": {
+        "tp": 0,
+        "tn": 70,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "accuracy": 1.0,
+        "n_samples": 70
+      }
+    }
+  },
+  "limitations": [
+    "Simulation only; synthetic data.",
+    "No formal privacy guarantee (ordinary FedAvg; no secure aggregation, no DP).",
+    "Fixed winsorisation selected on validation; not a privacy mechanism.",
+    "Unweighted BCE; the Sfax client is all-negative in training.",
+    "Overlapping, correlated windows.",
+    "Single linear model; no clinical claim."
+  ]
+}

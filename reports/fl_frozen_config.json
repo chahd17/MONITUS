@@ -1,0 +1,14 @@
+{
+  "clip": 10.0,
+  "learning_rate": 0.5,
+  "local_iterations": 20,
+  "rounds": 20,
+  "threshold": 0.5,
+  "random_state": 42,
+  "class_weight": null,
+  "n_features": 18,
+  "window_size": 21,
+  "selection_data": "TRAIN fit / VALIDATION selection only (test split never loaded)",
+  "selected_on_test": false,
+  "selected_at": "2026-10-27T02:29:00.777827+00:00"
+}
